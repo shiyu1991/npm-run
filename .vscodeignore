@@ -1,0 +1,16 @@
+.vscode/**
+.codebuddy/**
+src/**
+test/**
+fixtures/**
+out-test/**
+node_modules/**
+dist/*.map
+esbuild.js
+tsconfig.json
+**/*.ts
+**/*.map
+.gitignore
+*.vsix
+verify.log
+pub.log

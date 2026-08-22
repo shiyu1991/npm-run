@@ -1,0 +1,162 @@
+{
+  "name": "npm-run",
+  "displayName": "npm-run",
+  "description": "npm 脚本可视化管理：扫描工作区 npm 项目，一键运行脚本，自动追踪多端口服务，支持按端口单独结束服务",
+  "version": "0.2.0",
+  "publisher": "npm-run-dev",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shiyu1991/npm-run.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shiyu1991/npm-run/issues"
+  },
+  "homepage": "https://github.com/shiyu1991/npm-run#readme",
+  "categories": [
+    "Other",
+    "SCM Providers"
+  ],
+  "keywords": [
+    "npm",
+    "scripts",
+    "runner",
+    "ports",
+    "services",
+    "process",
+    "dev-server",
+    "monorepo"
+  ],
+  "activationEvents": [
+    "onView:npm-run.scripts"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "npm-run-container",
+          "title": "npm-run",
+          "icon": "media/activitybar.svg"
+        }
+      ]
+    },
+    "views": {
+      "npm-run-container": [
+        {
+          "id": "npm-run.scripts",
+          "name": "npm 脚本"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "npm-run.runScript",
+        "title": "运行脚本",
+        "icon": "$(play)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.stopScript",
+        "title": "停止脚本",
+        "icon": "$(debug-stop)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.showOutput",
+        "title": "查看输出",
+        "icon": "$(output)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.killService",
+        "title": "结束此服务",
+        "icon": "$(close)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.refresh",
+        "title": "刷新项目列表",
+        "icon": "$(refresh)",
+        "category": "npm-run"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "npm-run.refresh",
+          "when": "view == npm-run.scripts",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "npm-run.runScript",
+          "when": "view == npm-run.scripts && viewItem == script",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.stopScript",
+          "when": "view == npm-run.scripts && viewItem == script-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.showOutput",
+          "when": "view == npm-run.scripts && viewItem == script-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.killService",
+          "when": "view == npm-run.scripts && viewItem == service",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "npm-run",
+      "properties": {
+        "npm-run.exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/build/**",
+            "**/out/**",
+            "**/.git/**",
+            "**/coverage/**"
+          ],
+          "description": "扫描 package.json 时排除的 glob 模式"
+        },
+        "npm-run.pollIntervalMs": {
+          "type": "number",
+          "default": 1500,
+          "minimum": 500,
+          "description": "运行中脚本的端口/进程轮询间隔（毫秒）"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "node esbuild.js --production",
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "test": "node esbuild.js --test && mocha out-test/**/*.test.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.1.0",
+    "esbuild": "^0.21.5",
+    "mocha": "^10.4.0",
+    "typescript": "^5.4.5"
+  }
+}
