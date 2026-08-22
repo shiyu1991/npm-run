@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext): void {
   runner = new ScriptRunner();
   const instances = new Map<string, RunningScript>();
 
-  const provider = new NpmRunTreeProvider(scanner, instances, instanceKey);
+  const provider = new NpmRunTreeProvider(scanner, instances, instanceKey, () => monitor.external);
   const treeView = vscode.window.createTreeView('npm-run.scripts', {
     treeDataProvider: provider,
     showCollapseAll: true,
@@ -25,12 +25,22 @@ export function activate(context: vscode.ExtensionContext): void {
     .getConfiguration('npm-run')
     .get<number>('pollIntervalMs', 1500);
   const monitor = new ServiceMonitor(() => provider.refresh(), Math.max(500, intervalMs));
-  // 轮询间隔配置热生效
+  monitor.setExternalEnabled(
+    vscode.workspace.getConfiguration('npm-run').get<boolean>('detectExternal', true)
+  );
+  monitor.setVisible(treeView.visible);
+  treeView.onDidChangeVisibility((e) => monitor.setVisible(e.visible));
+  // 配置热生效
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('npm-run.pollIntervalMs')) {
         monitor.setInterval(
           Math.max(500, vscode.workspace.getConfiguration('npm-run').get<number>('pollIntervalMs', 1500))
+        );
+      }
+      if (e.affectsConfiguration('npm-run.detectExternal')) {
+        monitor.setExternalEnabled(
+          vscode.workspace.getConfiguration('npm-run').get<boolean>('detectExternal', true)
         );
       }
     })
@@ -155,6 +165,27 @@ export function activate(context: vscode.ExtensionContext): void {
     // 下一轮监控 tick 会自动从服务列表移除
   };
 
+  const killExternalService = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'external-service') {
+      return;
+    }
+    const s = node.service;
+    const confirm = await vscode.window.showWarningMessage(
+      `即将结束进程 ${s.name}（PID ${s.pid}，监听 :${s.port}），确定继续？`,
+      { modal: true },
+      '结束进程'
+    );
+    if (confirm !== '结束进程') {
+      return;
+    }
+    const err = await killProcessTree(s.pid);
+    if (err) {
+      void vscode.window.showErrorMessage(`结束服务失败: ${err}`);
+    } else {
+      void vscode.window.showInformationMessage(`服务 :${s.port}（PID ${s.pid}）已结束`);
+    }
+  };
+
   const refresh = async () => {
     await scanner.refresh();
   };
@@ -168,6 +199,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('npm-run.stopScript', stopScript),
     vscode.commands.registerCommand('npm-run.showOutput', showOutput),
     vscode.commands.registerCommand('npm-run.killService', killService),
+    vscode.commands.registerCommand('npm-run.killExternalService', killExternalService),
     vscode.commands.registerCommand('npm-run.refresh', refresh),
     scanner.watch(),
     { dispose: () => monitor.dispose() }

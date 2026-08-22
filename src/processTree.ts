@@ -4,6 +4,8 @@ export interface ProcessInfo {
   pid: number;
   ppid: number;
   name: string;
+  /** 完整命令行（可选，用于外部服务展示） */
+  commandLine?: string;
 }
 
 export type ProcessIndex = Map<number, ProcessInfo>;

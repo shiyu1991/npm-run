@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- 新增：外部服务检测——在 IDE 集成终端等场景手动启动的服务（如 `npm run dev`）自动出现在「检测到的外部服务」分组，可查看端口/命令行并单独结束
+- 新增：`npm-run.detectExternal` 配置项（默认开启）；外部检测仅在面板可见时轮询
+
 ## 0.2.1
 
 - 重命名：扩展 ID `npm-run` → `npm-run-manager`（原 ID 在 VSCode Marketplace 已被占用）

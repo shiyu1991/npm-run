@@ -23,6 +23,8 @@ npm 脚本可视化管理面板（VSCode / CodeBuddy）：
 │  ├─ 📡 127.0.0.1:5173 · [::]:5173   PID 1234  [✕]
 │  └─ 📡 127.0.0.1:3000               PID 5678  [✕]
 └─ ⌨ build                      vite build       [▶]
+🔌 检测到的外部服务（集成终端里手动 npm run dev 也能被发现）
+   └─ 📡 127.0.0.1:45731          node · PID 999  [✕]
 ```
 
 ### 使用
@@ -38,6 +40,11 @@ npm 脚本可视化管理面板（VSCode / CodeBuddy）：
 |---|---|---|
 | `npm-run.exclude` | `["**/node_modules/**", ...]` | 扫描 package.json 时排除的 glob |
 | `npm-run.pollIntervalMs` | `1500` | 端口/进程轮询间隔（毫秒），修改即时生效 |
+| `npm-run.detectExternal` | `true` | 检测 IDE 内启动的外部服务（集成终端手动运行的脚本），仅在面板可见时轮询 |
+
+### 外部服务检测说明
+
+插件会自动发现 **IDE 进程树内**启动的监听服务——包括在集成终端里手动执行的 `npm run dev`。物理边界：在 IDE 外部（独立系统终端窗口）启动的进程无法检测（与 WebStorm 行为一致）。
 
 ## English
 

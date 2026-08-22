@@ -1,12 +1,15 @@
 import * as vscode from 'vscode';
 import { NpmProject, RunningScript } from './types';
+import { ExternalService } from './externalServices';
 
 export type TreeNode =
   | { kind: 'project'; project: NpmProject }
   | { kind: 'script'; project: NpmProject; script: string; command: string; instance?: RunningScript }
-  | { kind: 'service'; project: NpmProject; script: string; instance: RunningScript; port: number };
+  | { kind: 'service'; project: NpmProject; script: string; instance: RunningScript; port: number }
+  | { kind: 'external-group' }
+  | { kind: 'external-service'; service: ExternalService };
 
-/** 树数据提供者：项目 → 脚本 → 服务（IP:端口） */
+/** 树数据提供者：项目 → 脚本 → 服务（IP:端口）+ 外部检测分组 */
 export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private _onDidChangeTreeData = new vscode.EventEmitter<TreeNode | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -14,7 +17,8 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   constructor(
     private readonly scanner: { projects: readonly NpmProject[] },
     private readonly instances: Map<string, RunningScript>,
-    private readonly keyOf: (project: NpmProject, script: string) => string
+    private readonly keyOf: (project: NpmProject, script: string) => string,
+    private readonly externalOf: () => readonly ExternalService[] = () => []
   ) {}
 
   refresh(): void {
@@ -55,22 +59,53 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     }
 
     // service
-    const svc = node.instance.services.get(node.port);
-    const label = svc ? svc.addresses.map((a) => `${a}:${svc.port}`).join(' · ') : String(node.port);
-    const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+    if (node.kind === 'service') {
+      const svc = node.instance.services.get(node.port);
+      const label = svc ? svc.addresses.map((a) => `${a}:${svc.port}`).join(' · ') : String(node.port);
+      const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+      item.iconPath = new vscode.ThemeIcon('radio-tower');
+      item.contextValue = svc?.isRoot ? 'service-root' : 'service';
+      item.description = svc ? `PID ${svc.pid}` : undefined;
+      item.tooltip = svc
+        ? `端口 ${svc.port}\n地址 ${svc.addresses.join(', ')}\n进程 PID ${svc.pid}` +
+          (svc.isRoot ? '\n\n该服务由脚本主进程监听，需停止整个脚本' : '\n点击 ✕ 结束此服务')
+        : undefined;
+      return item;
+    }
+
+    if (node.kind === 'external-group') {
+      const item = new vscode.TreeItem('检测到的外部服务', vscode.TreeItemCollapsibleState.Expanded);
+      item.iconPath = new vscode.ThemeIcon('plug');
+      item.description = '终端等启动';
+      item.tooltip = '在 IDE 内（如集成终端）启动、但非本插件运行的监听服务';
+      item.contextValue = 'external-group';
+      return item;
+    }
+
+    // external-service
+    const s = node.service;
+    const item = new vscode.TreeItem(
+      s.addresses.map((a) => `${a}:${s.port}`).join(' · '),
+      vscode.TreeItemCollapsibleState.None
+    );
     item.iconPath = new vscode.ThemeIcon('radio-tower');
-    item.contextValue = svc?.isRoot ? 'service-root' : 'service';
-    item.description = svc ? `PID ${svc.pid}` : undefined;
-    item.tooltip = svc
-      ? `端口 ${svc.port}\n地址 ${svc.addresses.join(', ')}\n进程 PID ${svc.pid}` +
-        (svc.isRoot ? '\n\n该服务由脚本主进程监听，需停止整个脚本' : '\n点击 ✕ 结束此服务')
-      : undefined;
+    item.contextValue = 'external-service';
+    item.description = `${s.name} · PID ${s.pid}`;
+    item.tooltip = `端口 ${s.port}\n进程 ${s.name}（PID ${s.pid}）\n${s.commandLine || '（无命令行信息）'}\n\n点击 ✕ 结束此服务`;
     return item;
   }
 
   getChildren(node?: TreeNode): TreeNode[] {
     if (!node) {
-      return this.scanner.projects.map((project) => ({ kind: 'project', project }));
+      const roots: TreeNode[] = this.scanner.projects.map((project) => ({ kind: 'project', project }));
+      const external = this.externalOf();
+      if (external.length > 0) {
+        roots.push({ kind: 'external-group' });
+      }
+      return roots;
+    }
+    if (node.kind === 'external-group') {
+      return this.externalOf().map((service) => ({ kind: 'external-service' as const, service }));
     }
     if (node.kind === 'project') {
       return [...node.project.scripts.entries()].map(([script, command]) => ({
