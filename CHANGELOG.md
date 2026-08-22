@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- 重命名：扩展 ID `npm-run` → `npm-run-manager`（原 ID 在 VSCode Marketplace 已被占用）
+
 ## 0.2.0
 
 - 修复：打开窗口后脚本列表不显示（扫描完成事件未连接到树刷新）

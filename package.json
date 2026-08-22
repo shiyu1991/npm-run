@@ -1,8 +1,8 @@
 {
-  "name": "npm-run",
-  "displayName": "npm-run",
+  "name": "npm-run-manager",
+  "displayName": "npm-run Manager",
   "description": "npm 脚本可视化管理：扫描工作区 npm 项目，一键运行脚本，自动追踪多端口服务，支持按端口单独结束服务",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",

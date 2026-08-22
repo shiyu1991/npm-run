@@ -1,4 +1,4 @@
-# npm-run
+# npm-run Manager
 
 [English](#english) | [中文](#中文)
 
