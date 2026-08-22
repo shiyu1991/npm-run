@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- 回退：撤销 0.3.0 的外部服务检测功能（存在回归问题），恢复 0.2.1 的稳定行为
+
 ## 0.2.1
 
 - 重命名：扩展 ID `npm-run` → `npm-run-manager`（原 ID 在 VSCode Marketplace 已被占用）
