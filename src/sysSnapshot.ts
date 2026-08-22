@@ -19,24 +19,24 @@ function execFileText(cmd: string, args: string[], timeoutMs = 5000): Promise<st
 /** 进程全量快照（一次拉取，内存过滤，禁止逐 PID 查询） */
 export async function snapshotProcesses(): Promise<ProcessInfo[]> {
   if (isWin) {
-    // wmic 已在新版 Windows 移除，用 PowerShell CIM；tab 分隔（命令行内可能含 | 等字符）
+    // wmic 已在新版 Windows 移除，用 PowerShell CIM；输出 "pid|ppid|name" 行避免 JSON 解析歧义
     const out = await execFileText('powershell.exe', [
       '-NoProfile',
       '-Command',
       '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; ' +
-        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$($_.Name)`t$($_.CommandLine)" }',
+        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)|$($_.ParentProcessId)|$($_.Name)" }',
     ]);
     const procs: ProcessInfo[] = [];
     for (const line of out.split('\n')) {
-      const m = /^(\d+)\t(\d+)\t([^\t]*)\t?(.*)$/.exec(line.replace(/\r$/, ''));
+      const m = /^(\d+)\|(\d+)\|(.+)$/.exec(line.trim());
       if (m) {
-        procs.push({ pid: Number(m[1]), ppid: Number(m[2]), name: m[3], commandLine: m[4] ?? '' });
+        procs.push({ pid: Number(m[1]), ppid: Number(m[2]), name: m[3] });
       }
     }
     return procs;
   }
-  // macOS / Linux：args= 拿完整命令行，首 token 作为进程名
-  const out = await execFileText('ps', ['-eo', 'pid=,ppid=,args=']);
+  // macOS / Linux
+  const out = await execFileText('ps', ['-eo', 'pid=,ppid=,comm=']);
   const procs: ProcessInfo[] = [];
   for (const line of out.split('\n')) {
     const parts = line.trim().split(/\s+/);
@@ -44,8 +44,7 @@ export async function snapshotProcesses(): Promise<ProcessInfo[]> {
       const pid = Number(parts[0]);
       const ppid = Number(parts[1]);
       if (Number.isFinite(pid) && Number.isFinite(ppid)) {
-        const args = parts.slice(2).join(' ');
-        procs.push({ pid, ppid, name: parts[2], commandLine: args });
+        procs.push({ pid, ppid, name: parts.slice(2).join(' ') });
       }
     }
   }

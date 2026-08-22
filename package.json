@@ -2,7 +2,7 @@
   "name": "npm-run-manager",
   "displayName": "npm-run Manager",
   "description": "npm 脚本可视化管理：扫描工作区 npm 项目，一键运行脚本，自动追踪多端口服务，支持按端口单独结束服务",
-  "version": "0.3.0",
+  "version": "0.2.1",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -79,12 +79,6 @@
         "category": "npm-run"
       },
       {
-        "command": "npm-run.killExternalService",
-        "title": "结束外部服务",
-        "icon": "$(close)",
-        "category": "npm-run"
-      },
-      {
         "command": "npm-run.refresh",
         "title": "刷新项目列表",
         "icon": "$(refresh)",
@@ -119,11 +113,6 @@
           "command": "npm-run.killService",
           "when": "view == npm-run.scripts && viewItem == service",
           "group": "inline"
-        },
-        {
-          "command": "npm-run.killExternalService",
-          "when": "view == npm-run.scripts && viewItem == external-service",
-          "group": "inline"
         }
       ]
     },
@@ -150,11 +139,6 @@
           "default": 1500,
           "minimum": 500,
           "description": "运行中脚本的端口/进程轮询间隔（毫秒）"
-        },
-        "npm-run.detectExternal": {
-          "type": "boolean",
-          "default": true,
-          "description": "检测 IDE 内启动的外部服务（如集成终端里手动运行的 npm 脚本）"
         }
       }
     }

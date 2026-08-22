@@ -3,7 +3,6 @@ import { buildProcessIndex, collectSubtreePids } from './processTree';
 import { ServiceSnapshot, diffServices } from './serviceDiff';
 import { RunningScript, ServiceInfo } from './types';
 import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
-import { ExternalService, computeExternalServices } from './externalServices';
 
 /** 服务条目（端口快照查到的占用者） */
 export interface PortOwner {
@@ -20,31 +19,11 @@ export class ServiceMonitor {
   private timer: NodeJS.Timeout | undefined;
   private ticking = false;
   private lastSockets: ListeningSocket[] = [];
-  private _external: ExternalService[] = [];
-  private _visible = true;
-  private _externalEnabled = true;
 
   constructor(
     private readonly onChange: () => void,
-    private intervalMs: number,
-    private readonly extensionHostPid: number = process.pid
+    private intervalMs: number
   ) {}
-
-  /** 视图可见性：不可见时停止外部检测轮询（托管脚本仍继续） */
-  setVisible(v: boolean): void {
-    this._visible = v;
-    if (v && !this.timer && !this.ticking) {
-      void this.tick();
-    }
-  }
-
-  setExternalEnabled(v: boolean): void {
-    this._externalEnabled = v;
-  }
-
-  get external(): readonly ExternalService[] {
-    return this._external;
-  }
 
   attach(key: string, instance: RunningScript): void {
     this.instances.set(key, instance);
@@ -126,30 +105,11 @@ export class ServiceMonitor {
       if (changed) {
         this.onChange();
       }
-
-      // 外部服务检测（IDE 树内、非托管、非 IDE 自身）：视图可见时才执行
-      if (this._externalEnabled && this._visible) {
-        const external = computeExternalServices({
-          procs,
-          sockets,
-          extensionHostPid: this.extensionHostPid,
-          managedRootPids: [...this.instances.values()].map((i) => i.rootPid),
-        });
-        const changedExt =
-          external.length !== this._external.length ||
-          external.some(
-            (s, i) => s.pid !== this._external[i].pid || s.port !== this._external[i].port
-          );
-        if (changedExt) {
-          this._external = external;
-          this.onChange();
-        }
-      }
     } catch {
       // 快照失败（命令不可用等）：静默跳过本轮，下一轮重试
     } finally {
       this.ticking = false;
-      if (this.instances.size > 0 || (this._externalEnabled && this._visible)) {
+      if (this.instances.size > 0) {
         this.timer = setTimeout(() => void this.tick(), this.intervalMs);
       } else {
         this.timer = undefined;
