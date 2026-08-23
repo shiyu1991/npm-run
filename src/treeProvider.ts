@@ -36,14 +36,17 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
     if (node.kind === 'script') {
       const running = node.instance !== undefined;
+      const adoptedOnly = node.instance?.adoptedOnly === true;
       const item = new vscode.TreeItem(
         node.script,
         running ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None
       );
       item.contextValue = running ? 'script-running' : 'script';
-      item.description = running ? '运行中' : node.command;
+      item.description = running ? (adoptedOnly ? '扩展代管' : '运行中') : node.command;
       item.tooltip = running
-        ? `npm run ${node.script}（PID ${node.instance!.rootPid}）\n${node.command}`
+        ? `npm run ${node.script}${
+            adoptedOnly ? '（脚本进程已退出，服务由扩展代管）' : `（PID ${node.instance!.rootPid}）`
+          }\n${node.command}`
         : `npm run ${node.script}\n${node.command}`;
       item.iconPath = running
         ? new vscode.ThemeIcon('sync~spin')
@@ -63,7 +66,9 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     item.description = svc ? `PID ${svc.pid}` : undefined;
     item.tooltip = svc
       ? `端口 ${svc.port}\n地址 ${svc.addresses.join(', ')}\n进程 PID ${svc.pid}` +
-        (svc.isRoot ? '\n\n该服务由脚本主进程监听，需停止整个脚本' : '\n点击 ✕ 结束此服务')
+        (svc.isRoot
+          ? '\n\n该服务由脚本主进程监听\n点击 ⟳ 重启整个脚本'
+          : '\n点击 ⟳ 仅重启此服务\n点击 ✕ 结束此服务')
       : undefined;
     return item;
   }

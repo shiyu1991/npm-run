@@ -72,10 +72,18 @@ export class ServiceMonitor {
       const [procs, sockets] = await Promise.all([snapshotProcesses(), snapshotPorts()]);
       this.lastSockets = sockets;
       const index = buildProcessIndex(procs);
+      const cmdOf = new Map<number, string | undefined>(procs.map((p) => [p.pid, p.cmdline]));
       let changed = false;
 
       for (const inst of this.instances.values()) {
+        // 归属集合 = 进程子树 + 扩展代管进程及其子树（shell:true 拉起时监听者是其子进程）
         const subtree = collectSubtreePids(inst.rootPid, index);
+        for (const pid of inst.adoptedPids) {
+          for (const a of collectSubtreePids(pid, index)) {
+            subtree.add(a);
+          }
+          subtree.add(pid);
+        }
         const next = new Map<number, ServiceSnapshot>();
         for (const s of sockets) {
           if (subtree.has(s.pid)) {
@@ -95,6 +103,7 @@ export class ServiceMonitor {
               addresses: s.addresses,
               pid: s.pid,
               isRoot: s.pid === inst.rootPid,
+              cmdline: cmdOf.get(s.pid),
             });
           }
           inst.services = services;

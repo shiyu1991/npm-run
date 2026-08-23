@@ -5,7 +5,7 @@ import { ServiceMonitor } from './serviceMonitor';
 import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
 import { killProcessTree } from './killTree';
 import { NpmRunTreeProvider, TreeNode } from './treeProvider';
-import { RunningScript } from './types';
+import { NpmProject, RunningScript } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
 
 let runner: ScriptRunner | undefined;
@@ -84,21 +84,21 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const runnerEvents: RunnerEvents = {
     onExit(key, instance) {
+      // 脚本根进程退出但仍有代管服务：保留实例继续管理（树/监控/停止按钮仍可用）
+      if (instance.adoptedPids.size > 0) {
+        provider.refresh();
+        return;
+      }
       instances.delete(key);
       monitor.detach(key);
       provider.refresh();
-      void instance; // channel 由 runner 持有复用，重跑时保留历史输出
     },
     onConflictPort(instance, port) {
       void handleConflict(instance, port);
     },
   };
 
-  const runScript = async (node?: TreeNode) => {
-    if (!node || node.kind !== 'script') {
-      return;
-    }
-    const { project, script } = node;
+  const startScript = async (project: NpmProject, script: string) => {
     if (runner!.isRunning(project, script)) {
       void vscode.window.showWarningMessage('脚本已在运行中，请先停止');
       return;
@@ -113,6 +113,13 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  const runScript = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'script') {
+      return;
+    }
+    await startScript(node.project, node.script);
+  };
+
   const stopScript = async (node?: TreeNode) => {
     if (!node || node.kind !== 'script') {
       return;
@@ -125,22 +132,71 @@ export function activate(context: vscode.ExtensionContext): void {
     // close 事件触发后由 onExit 清理并刷新
   };
 
+  /** 正在重启中的脚本 key：防止无反馈窗口期内的重复点击导致连环重启 */
+  const restarting = new Set<string>();
+
+  /** 脚本行与服务行都可触发：服务行上的重启 = 重启其所属脚本（单服务无法独立拉起） */
   const restartScript = async (node?: TreeNode) => {
-    if (!node || node.kind !== 'script') {
+    if (!node || (node.kind !== 'script' && node.kind !== 'service')) {
       return;
     }
-    if (!runner!.isRunning(node.project, node.script)) {
+    const { project, script } = node;
+    const key = instanceKey(project, script);
+    if (restarting.has(key)) {
+      return; // 一次重启还在进行中，忽略重复触发
+    }
+    if (!runner!.isRunning(project, script)) {
       void vscode.window.showWarningMessage('脚本未在运行');
       return;
     }
-    const err = await runner!.stop(node.project, node.script);
-    if (err) {
-      void vscode.window.showErrorMessage(`停止失败: ${err}`);
+    restarting.add(key);
+    try {
+      // 立即给出反馈，避免用户以为没点上而再点
+      instances.get(key)?.output.appendLine('[npm-run] 正在重启...');
+      const err = await runner!.stop(project, script);
+      if (err) {
+        void vscode.window.showErrorMessage(`停止失败: ${err}`);
+        return;
+      }
+      // 等 close 事件完成实例清理后再启动，否则会被"已在运行中"拦截
+      await runner!.waitForExit(key);
+      await startScript(project, script);
+    } finally {
+      restarting.delete(key);
+    }
+  };
+
+  /** 单服务独立重启进行中的守卫（key|port），防连点 */
+  const restartingServices = new Set<string>();
+
+  /** 服务行专属：仅重启这一个服务（杀掉后按其原始命令行由扩展代管拉起） */
+  const restartService = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'service') {
       return;
     }
-    // 等 close 事件完成实例清理后再启动，否则会被"已在运行中"拦截
-    await runner!.waitForExit(instanceKey(node.project, node.script));
-    await runScript(node);
+    const svc = node.instance.services.get(node.port);
+    if (!svc || svc.isRoot) {
+      return; // 根进程服务走 restartScript（菜单已分流）
+    }
+    const guard = `${instanceKey(node.project, node.script)}|${node.port}`;
+    if (restartingServices.has(guard)) {
+      return;
+    }
+    restartingServices.add(guard);
+    try {
+      node.instance.output.appendLine(`[npm-run] 正在重启服务 :${svc.port}...`);
+      const killErr = await killProcessTree(svc.pid);
+      if (killErr) {
+        void vscode.window.showErrorMessage(`重启服务失败: ${killErr}`);
+        return;
+      }
+      const err = runner!.respawnService(node.instance, svc);
+      if (err) {
+        void vscode.window.showErrorMessage(err);
+      }
+    } finally {
+      restartingServices.delete(guard);
+    }
   };
 
   const showOutput = (node?: TreeNode) => {
@@ -185,6 +241,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('npm-run.runScript', runScript),
     vscode.commands.registerCommand('npm-run.stopScript', stopScript),
     vscode.commands.registerCommand('npm-run.restartScript', restartScript),
+    vscode.commands.registerCommand('npm-run.restartService', restartService),
     vscode.commands.registerCommand('npm-run.showOutput', showOutput),
     vscode.commands.registerCommand('npm-run.killService', killService),
     vscode.commands.registerCommand('npm-run.refresh', refresh),

@@ -1,6 +1,6 @@
 import { spawn, ChildProcess } from 'child_process';
 import * as vscode from 'vscode';
-import { NpmProject, RunningScript } from './types';
+import { NpmProject, RunningScript, ServiceInfo } from './types';
 import { extractConflictPort } from './errorParse';
 import { killProcessTree } from './killTree';
 
@@ -26,9 +26,19 @@ export class ScriptRunner {
   private channels = new Map<string, vscode.OutputChannel>();
   /** 等待某脚本退出的回调（重启时用：close 事件清理完实例后再启动） */
   private exitWaiters = new Map<string, Set<() => void>>();
+  /** key → 实例（stop 时清理 adoptedPids 用） */
+  private runningInstances = new Map<string, RunningScript>();
+  /** key → 事件回调（代管进程终结时通知用） */
+  private eventsMap = new Map<string, RunnerEvents>();
 
+  /** 含"扩展代管"状态：根进程已退出但代管服务仍在 */
   isRunning(project: NpmProject, script: string): boolean {
-    return this.children.has(instanceKey(project, script));
+    const key = instanceKey(project, script);
+    if (this.children.has(key)) {
+      return true;
+    }
+    const inst = this.runningInstances.get(key);
+    return inst !== undefined && inst.adoptedPids.size > 0;
   }
 
   get runningKeys(): IterableIterator<string> {
@@ -54,7 +64,7 @@ export class ScriptRunner {
 
   run(project: NpmProject, script: string, events: RunnerEvents): RunningScript {
     const key = instanceKey(project, script);
-    if (this.children.has(key)) {
+    if (this.isRunning(project, script)) {
       throw new Error('脚本已在运行中');
     }
 
@@ -72,10 +82,13 @@ export class ScriptRunner {
       script,
       rootPid: child.pid ?? -1,
       services: new Map(),
+      adoptedPids: new Set(),
       output,
     };
 
     this.children.set(key, child);
+    this.runningInstances.set(key, instance);
+    this.eventsMap.set(key, events);
 
     // 行缓冲：按行喂输出，兼顾展示与 EADDRINUSE 检测；
     // 同一实例同一端口冲突只上报一次，防止脚本重试输出多行 EADDRINUSE 弹窗轰炸
@@ -123,14 +136,31 @@ export class ScriptRunner {
     return instance;
   }
 
-  /** 停止脚本：杀完整进程树（从根 npm 包装层开始） */
+  /** 停止脚本：杀完整进程树（从根 npm 包装层开始）+ 清理代管进程 */
   async stop(project: NpmProject, script: string): Promise<string> {
     const key = instanceKey(project, script);
     const child = this.children.get(key);
-    if (!child || child.pid === undefined) {
-      return '';
+    const errs: string[] = [];
+    if (child?.pid !== undefined) {
+      errs.push(await killProcessTree(child.pid));
     }
-    return killProcessTree(child.pid);
+    const inst = this.runningInstances.get(key);
+    if (inst) {
+      for (const pid of [...inst.adoptedPids]) {
+        errs.push(await killProcessTree(pid));
+        // 同步移除，避免随后 finish() 误判"仍有代管"而保留实例
+        inst.adoptedPids.delete(pid);
+      }
+      // 代管状态下停止：主动终结实例（不等 close 事件），
+      // 保证随后的整脚本重启（stop → start）不会撞"已在运行中"
+      if (!this.children.has(key) && inst.adoptedPids.size === 0) {
+        this.runningInstances.delete(key);
+        const events = this.eventsMap.get(key);
+        this.eventsMap.delete(key);
+        events?.onExit(key, inst, null);
+      }
+    }
+    return errs.find((e) => e) ?? '';
   }
 
   /** 等待指定脚本退出（close 事件触发、实例清理完成后 resolve），超时兜底放行 */
@@ -153,11 +183,51 @@ export class ScriptRunner {
     });
   }
 
+  /**
+   * 单服务重启：以服务原始命令行重新拉起进程，由扩展代管（adoptedPids）。
+   * 监控轮询会把代管 PID 并入归属集合，树中该端口条目保留；停止/退出脚本时一并清理。
+   */
+  respawnService(inst: RunningScript, svc: ServiceInfo): string {
+    if (!svc.cmdline) {
+      return '无法获取该服务的启动命令，不能单独重启';
+    }
+    const child = spawn(svc.cmdline, {
+      cwd: inst.project.dir.fsPath,
+      shell: true,
+      windowsHide: true,
+      env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' },
+    });
+    if (child.pid === undefined) {
+      return `重启服务 :${svc.port} 失败：进程未创建`;
+    }
+    inst.adoptedPids.add(child.pid);
+    inst.output.appendLine(
+      `[npm-run] 已重启服务 :${svc.port}（新 PID ${child.pid}，命令: ${svc.cmdline}）`
+    );
+    child.stdout?.on('data', (d: Buffer) => inst.output.append(d.toString('utf8')));
+    child.stderr?.on('data', (d: Buffer) => inst.output.append(d.toString('utf8')));
+    child.on('error', (err) => {
+      inst.output.appendLine(`\n[npm-run] 重启的服务 :${svc.port} 启动失败: ${err.message}`);
+      inst.adoptedPids.delete(child.pid!);
+    });
+    child.on('close', () => {
+      inst.adoptedPids.delete(child.pid!);
+      // 脚本根已退出且这是最后一个代管进程 → 实例真正终结
+      this.finalizeIfGone(inst);
+    });
+    return '';
+  }
+
   /** 停止全部托管脚本（扩展停用时防孤儿进程） */
   async stopAll(): Promise<void> {
     const pids = [...this.children.values()]
       .map((c) => c.pid)
       .filter((p): p is number => p !== undefined);
+    for (const inst of this.runningInstances.values()) {
+      for (const pid of inst.adoptedPids) {
+        pids.push(pid);
+      }
+    }
     await Promise.all(pids.map((pid) => killProcessTree(pid)));
   }
 
@@ -170,6 +240,33 @@ export class ScriptRunner {
         done();
       }
     }
+    // 仍有代管服务在运行（launcher 类脚本在子进程全被替换后会自然退出）：
+    // 不清杀代管进程，实例转入"扩展代管"状态继续存活，由 stop/stopAll 统一清理
+    if (instance.adoptedPids.size > 0) {
+      instance.adoptedOnly = true;
+      instance.output.appendLine(
+        '[npm-run] 启动器进程已结束，剩余服务由扩展代管继续运行（停止脚本将结束全部服务）'
+      );
+      events.onExit(key, instance, code);
+      return;
+    }
+    this.runningInstances.delete(key);
+    this.eventsMap.delete(key);
     events.onExit(key, instance, code);
+  }
+
+  /** 根进程已退出且代管进程全部结束 → 通知终结（respawn 的 close 回调里用） */
+  private finalizeIfGone(inst: RunningScript): void {
+    const key = instanceKey(inst.project, inst.script);
+    if (this.children.has(key) || inst.adoptedPids.size > 0) {
+      return;
+    }
+    if (!this.runningInstances.has(key)) {
+      return;
+    }
+    this.runningInstances.delete(key);
+    const events = this.eventsMap.get(key);
+    this.eventsMap.delete(key);
+    events?.onExit(key, inst, null);
   }
 }

@@ -22,6 +22,8 @@ export interface ServiceInfo {
   pid: number;
   /** 监听进程是否为脚本根进程本身（根进程不可单独结束，只能停止整个脚本） */
   isRoot: boolean;
+  /** 该服务的完整启动命令行（快照拿不到时缺省；单服务重启的凭据） */
+  cmdline?: string;
 }
 
 /** 一个正在运行的脚本实例 */
@@ -32,6 +34,10 @@ export interface RunningScript {
   rootPid: number;
   /** 端口 → 服务 */
   services: Map<number, ServiceInfo>;
+  /** 扩展代管拉起的进程（单服务重启产生），停止/退出脚本时一并清理 */
+  adoptedPids: Set<number>;
+  /** 脚本根进程已退出、仅剩代管服务在运行（launcher 类脚本在子进程全部被替换后会自然退出） */
+  adoptedOnly?: boolean;
   /** 该实例的输出通道 */
   output: vscode.OutputChannel;
 }

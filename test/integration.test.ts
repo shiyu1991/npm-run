@@ -104,6 +104,158 @@ describe('集成：npm 多端口服务追踪（仅 Windows）', function () {
     assert.equal(err, '', `杀不存在进程应返回成功，实际: ${err}`);
   });
 
+  it('单服务重启：按快照命令行拉起 → 归属并集仍含该端口 → 停止后无孤儿', async function () {
+    const child = spawnNpm(APP_A, 'dev');
+    const rootPid = child.pid!;
+    let adopted: number | undefined; // 模拟 runner.respawnService 拉起的代管进程
+    try {
+      // 等两个服务出现
+      let found: { port: number; pid: number }[] = [];
+      const deadline = Date.now() + 30000;
+      while (Date.now() < deadline) {
+        await sleep(2000);
+        found = await portsOfTree(rootPid);
+        if (found.length >= 2) {
+          break;
+        }
+      }
+      assert.equal(found.length, 2, `应发现 2 个服务，实际: ${JSON.stringify(found)}`);
+
+      // 从进程快照抓 45732 服务的完整命令行（respawn 的凭据）
+      const procs = await snapshotProcesses();
+      const target = found.find((f) => f.port === 45732)!;
+      const cmdline = procs.find((p) => p.pid === target.pid)?.cmdline;
+      assert.ok(cmdline, `应能抓到 45732 服务的命令行（PID ${target.pid}）`);
+      assert.ok(cmdline!.includes('server-b'), `命令行应含 server-b，实际: ${cmdline}`);
+
+      // 杀掉该服务，另一服务不动
+      assert.equal(await killProcessTree(target.pid), '');
+      // 按命令行在项目目录重新拉起（等价 runner.respawnService 的 spawn 参数）
+      const respawned = spawn(cmdline!, {
+        cwd: APP_A,
+        shell: true,
+        windowsHide: true,
+        env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+      });
+      respawned.on('error', () => {});
+      adopted = respawned.pid;
+
+      // 等端口以新 PID 回来
+      const deadline2 = Date.now() + 15000;
+      let ownerPid: number | undefined;
+      while (Date.now() < deadline2) {
+        await sleep(2000);
+        const sockets = await snapshotPorts();
+        ownerPid = sockets.find((s) => s.port === 45732)?.pid;
+        if (ownerPid !== undefined) {
+          break;
+        }
+      }
+      assert.ok(ownerPid, '重启后 45732 应回到监听状态');
+      assert.notEqual(ownerPid, target.pid, '新监听者应是重新拉起的进程');
+
+      // 归属判定 = 子树 ∪ adopted 子树（serviceMonitor tick 的同款逻辑：
+      // shell:true 拉起时 PID 是 shell 包装层，真正监听者是其子进程）
+      const [procs2, sockets2] = await Promise.all([snapshotProcesses(), snapshotPorts()]);
+      const index2 = buildProcessIndex(procs2);
+      const subtree = collectSubtreePids(rootPid, index2);
+      for (const a of collectSubtreePids(adopted!, index2)) {
+        subtree.add(a);
+      }
+      subtree.add(adopted!);
+      const owned = sockets2.filter((s) => subtree.has(s.pid)).map((s) => s.port).sort((a, b) => a - b);
+      assert.deepEqual(owned, [45731, 45732], '并集归属应同时含未动服务与重启服务');
+    } finally {
+      await killProcessTree(rootPid);
+      if (adopted !== undefined) {
+        await killProcessTree(adopted); // runner.stop 的同款清理
+      }
+      child.kill();
+    }
+
+    // 无孤儿：树 + 代管全杀后不应残留监听
+    await sleep(2500);
+    const procs3 = await snapshotProcesses();
+    const sockets3 = await snapshotPorts();
+    const leftovers = sockets3.filter((s) => s.port === 45731 || s.port === 45732);
+    assert.equal(
+      leftovers.length,
+      0,
+      `不应残留孤儿监听: ${JSON.stringify(leftovers)}（进程数 ${procs3.length}）`
+    );
+  });
+
+  it('全部服务被替换为代管进程后：脚本自然退出、代管服务存活、清理无孤儿', async function () {
+    const child = spawnNpm(APP_A, 'dev');
+    const rootPid = child.pid!;
+    const adopted: number[] = [];
+    let rootCode: number | null | undefined;
+    child.on('close', (c) => {
+      rootCode = c;
+    });
+    try {
+      // 等两个服务出现
+      let found: { port: number; pid: number }[] = [];
+      const deadline = Date.now() + 30000;
+      while (Date.now() < deadline) {
+        await sleep(2000);
+        found = await portsOfTree(rootPid);
+        if (found.length >= 2) {
+          break;
+        }
+      }
+      assert.equal(found.length, 2, `应发现 2 个服务，实际: ${JSON.stringify(found)}`);
+
+      // 逐个"重启"：杀原进程 → 按快照命令行拉起（runner.respawnService 同款参数）
+      const procs = await snapshotProcesses();
+      for (const port of [45731, 45732]) {
+        const target = found.find((f) => f.port === port)!;
+        const cmdline = procs.find((p) => p.pid === target.pid)?.cmdline;
+        assert.ok(cmdline, `应能抓到 :${port} 服务的命令行（PID ${target.pid}）`);
+        assert.equal(await killProcessTree(target.pid), '');
+        const r = spawn(cmdline!, {
+          cwd: APP_A,
+          shell: true,
+          windowsHide: true,
+          env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+        });
+        r.on('error', () => {});
+        adopted.push(r.pid!);
+      }
+
+      // launcher 类脚本（靠等待子进程存活）在子进程全被替换后会自然退出——
+      // 这是脚本自身的语义；扩展应让代管服务继续存活
+      const deadline2 = Date.now() + 15000;
+      while (Date.now() < deadline2 && rootCode === undefined) {
+        await sleep(1000);
+      }
+      assert.notEqual(rootCode, undefined, '原脚本进程应已自然退出（事件循环清空）');
+
+      // 代管服务仍在监听（扩展"代管"状态的核心承诺）
+      await sleep(2000);
+      const sockets = await snapshotPorts();
+      assert.ok(
+        sockets.some((s) => s.port === 45731),
+        '代管 server-a 应继续监听 45731'
+      );
+      assert.ok(
+        sockets.some((s) => s.port === 45732),
+        '代管 server-b 应继续监听 45732'
+      );
+    } finally {
+      // runner.stop 的同款清理：树 + 代管全杀
+      await killProcessTree(rootPid);
+      for (const pid of adopted) {
+        await killProcessTree(pid);
+      }
+      child.kill();
+    }
+
+    await sleep(2500);
+    const leftovers = (await snapshotPorts()).filter((s) => s.port === 45731 || s.port === 45732);
+    assert.equal(leftovers.length, 0, `不应残留孤儿监听: ${JSON.stringify(leftovers)}`);
+  });
+
   it('固定端口被外部占用时，第二个实例报 EADDRINUSE 且可提取端口', async function () {
     const first = spawnNpm(APP_B, 'start');
     try {

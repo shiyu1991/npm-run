@@ -4,6 +4,8 @@ export interface ProcessInfo {
   pid: number;
   ppid: number;
   name: string;
+  /** 完整启动命令行（快照拿不到时缺省），单服务重启用 */
+  cmdline?: string;
 }
 
 export type ProcessIndex = Map<number, ProcessInfo>;
