@@ -24,6 +24,8 @@ export class ScriptRunner {
   private children = new Map<string, ChildProcess>();
   /** 按 key 复用 OutputChannel，避免同一脚本多次运行堆积 channel 泄漏 */
   private channels = new Map<string, vscode.OutputChannel>();
+  /** 等待某脚本退出的回调（重启时用：close 事件清理完实例后再启动） */
+  private exitWaiters = new Map<string, Set<() => void>>();
 
   isRunning(project: NpmProject, script: string): boolean {
     return this.children.has(instanceKey(project, script));
@@ -131,6 +133,26 @@ export class ScriptRunner {
     return killProcessTree(child.pid);
   }
 
+  /** 等待指定脚本退出（close 事件触发、实例清理完成后 resolve），超时兜底放行 */
+  waitForExit(key: string, timeoutMs = 3000): Promise<void> {
+    if (!this.children.has(key)) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(done, timeoutMs);
+      let waiters = this.exitWaiters.get(key);
+      if (!waiters) {
+        waiters = new Set();
+        this.exitWaiters.set(key, waiters);
+      }
+      waiters.add(done);
+    });
+  }
+
   /** 停止全部托管脚本（扩展停用时防孤儿进程） */
   async stopAll(): Promise<void> {
     const pids = [...this.children.values()]
@@ -141,6 +163,13 @@ export class ScriptRunner {
 
   private finish(key: string, instance: RunningScript, events: RunnerEvents, code: number | null): void {
     this.children.delete(key);
+    const waiters = this.exitWaiters.get(key);
+    if (waiters) {
+      this.exitWaiters.delete(key);
+      for (const done of waiters) {
+        done();
+      }
+    }
     events.onExit(key, instance, code);
   }
 }

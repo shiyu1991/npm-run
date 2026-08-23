@@ -125,6 +125,24 @@ export function activate(context: vscode.ExtensionContext): void {
     // close 事件触发后由 onExit 清理并刷新
   };
 
+  const restartScript = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'script') {
+      return;
+    }
+    if (!runner!.isRunning(node.project, node.script)) {
+      void vscode.window.showWarningMessage('脚本未在运行');
+      return;
+    }
+    const err = await runner!.stop(node.project, node.script);
+    if (err) {
+      void vscode.window.showErrorMessage(`停止失败: ${err}`);
+      return;
+    }
+    // 等 close 事件完成实例清理后再启动，否则会被"已在运行中"拦截
+    await runner!.waitForExit(instanceKey(node.project, node.script));
+    await runScript(node);
+  };
+
   const showOutput = (node?: TreeNode) => {
     if (!node || node.kind !== 'script') {
       return;
@@ -166,6 +184,7 @@ export function activate(context: vscode.ExtensionContext): void {
     scanner.onDidChange(() => provider.refresh()),
     vscode.commands.registerCommand('npm-run.runScript', runScript),
     vscode.commands.registerCommand('npm-run.stopScript', stopScript),
+    vscode.commands.registerCommand('npm-run.restartScript', restartScript),
     vscode.commands.registerCommand('npm-run.showOutput', showOutput),
     vscode.commands.registerCommand('npm-run.killService', killService),
     vscode.commands.registerCommand('npm-run.refresh', refresh),
