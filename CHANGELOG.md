@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- 文档：中英文说明及扩展描述明确兼容所有 VSCode 系编辑器（VSCode、Cursor、Windsurf、Trae、CodeBuddy、VSCodium 等）
+
 ## 0.5.0
 
 - 新增：单服务独立重启——记住服务的原始启动命令，重启时仅杀掉该服务并由扩展代管拉起（其余服务不受影响）

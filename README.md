@@ -2,11 +2,11 @@
 
 [English](#english) | [中文](#中文)
 
-Visual npm scripts manager for VSCode / CodeBuddy: scan all npm projects in your workspace (monorepo friendly), run any script with one click, and **automatically track every listening port/service spawned by the script** — kill a single service without stopping the others.
+Visual npm scripts manager for VSCode and any VSCode-based editor — Cursor, Windsurf, Trae, CodeBuddy, VSCodium and more: scan all npm projects in your workspace (monorepo friendly), run any script with one click, and **automatically track every listening port/service spawned by the script** — kill a single service without stopping the others.
 
 ## 中文
 
-npm 脚本可视化管理面板（VSCode / CodeBuddy）：
+npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Trae、CodeBuddy、VSCodium 等 VSCode 系编辑器通用）：
 
 - **项目扫描**：自动扫描工作区内所有 npm 项目（支持 monorepo 子包，排除 `node_modules` 等），按项目分组展示 scripts
 - **一键运行**：脚本行内 ▶ 按钮运行，输出实时流入输出面板（按脚本复用，保留历史）
@@ -41,7 +41,7 @@ npm 脚本可视化管理面板（VSCode / CodeBuddy）：
 
 ## English
 
-Visual npm scripts manager for VSCode / CodeBuddy:
+Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Windsurf, Trae, CodeBuddy, VSCodium, ...):
 
 - **Project scan**: finds every `package.json` in the workspace (monorepo friendly, `node_modules` excluded), groups scripts by project
 - **One-click run**: inline ▶ button per script; output streams into a per-script output channel
