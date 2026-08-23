@@ -4,6 +4,7 @@
 
 - 文档：中英文说明及扩展描述明确兼容所有 VSCode 系编辑器（VSCode、Cursor、Windsurf、Kiro、Trae、CodeBuddy、通义灵码、文心快码、Void、VSCodium 等）
 - 优化：关键词补充常用编辑器名称（cursor / windsurf / trae / codebuddy / kiro），便于在各编辑器扩展市场检索
+- 文档：README 使用说明补充重启操作（脚本行 ⟳ 整脚本重启、服务行 ⟳ 单服务重启）及"扩展代管"状态说明
 
 ## 0.5.0
 
