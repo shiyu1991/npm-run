@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- 优化：移除冗余的 activationEvents 声明（VSCode 1.74+ 依据 contributes 自动生成）
+- 修复：视图缺少图标（补充 view icon）
+
 ## 0.4.0
 
 - 新增：运行中脚本支持一键重启（停止 → 等待退出清理 → 自动重新启动）
