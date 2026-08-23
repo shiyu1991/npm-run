@@ -29,7 +29,12 @@
     "services",
     "process",
     "dev-server",
-    "monorepo"
+    "monorepo",
+    "cursor",
+    "windsurf",
+    "trae",
+    "codebuddy",
+    "kiro"
   ],
   "main": "./dist/extension.js",
   "contributes": {

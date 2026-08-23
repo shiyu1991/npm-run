@@ -2,7 +2,8 @@
 
 ## 0.5.1
 
-- 文档：中英文说明及扩展描述明确兼容所有 VSCode 系编辑器（VSCode、Cursor、Windsurf、Trae、CodeBuddy、VSCodium 等）
+- 文档：中英文说明及扩展描述明确兼容所有 VSCode 系编辑器（VSCode、Cursor、Windsurf、Kiro、Trae、CodeBuddy、通义灵码、文心快码、Void、VSCodium 等）
+- 优化：关键词补充常用编辑器名称（cursor / windsurf / trae / codebuddy / kiro），便于在各编辑器扩展市场检索
 
 ## 0.5.0
 
