@@ -2,7 +2,9 @@
 
 [English](#english) | [中文](#中文)
 
-Visual npm scripts manager for VSCode and any VSCode-based editor — Cursor, Windsurf, Kiro, Trae, CodeBuddy, Tongyi Lingma, Baidu Comate, Void, VSCodium and more: scan all npm projects in your workspace (monorepo friendly), run any script with one click, and **automatically track every listening port/service spawned by the script** — kill a single service without stopping the others.
+Visual npm scripts manager for VSCode and any VSCode-based editor — Cursor, Windsurf, Kiro, Trae, CodeBuddy, Tongyi Lingma, Baidu Comate, Void, VSCodium and more: scan all npm projects in your workspace (monorepo friendly), run any script with one click, and **automatically track every listening port/service spawned by the script** — kill or restart a single service without stopping the others.
+
+> UI languages: follows the editor display language (中文 / English).
 
 ## 中文
 
@@ -30,7 +32,7 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 1. 点击活动栏 npm-run 图标打开面板
 2. 展开项目 → 点击脚本行右侧 ▶ 运行
 3. 运行中脚本自动展开服务列表：
-   - 服务行点 ⟳ **仅重启该服务**（其余服务不受影响），点 ✕ 单独结束
+   - 服务行点 ⟳ **仅重启该服务**（其余服务不受影响），点 ✕ 单独结束；若脚本只有这一个服务，⟳ 会直接重启整个脚本（效果必然等价）
    - 脚本行点 ⟳ 重启整个脚本，点 ■ 停止整个脚本
 4. 点击脚本名或 📄 按钮查看实时输出
 5. 若启动器进程退出（如 `concurrently` 场景）但仍有被单独重启过的服务在跑，脚本行显示**扩展代管**，服务继续被追踪，停止时统一清理
@@ -52,6 +54,33 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 - **Per-service control**: each service node shows IP + port with ⟳ restart and ✕ kill buttons; restart or kill just one service (e.g. one of three started via `concurrently`) without touching the others
 - **Port conflict handling**: on `EADDRINUSE`, tells you whether the port is held by another of *your* scripts or an external process, and offers a confirmed one-click kill for the latter
 - **Clean exit**: kills all process trees when the window closes or the extension is deactivated — no orphan processes
+
+### Panel layout
+
+```
+📦 project name (e.g. app-a)     3 scripts
+├─ ⌨ dev (running)              vite --host   [⟳ ■ 📄]
+│  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕]
+│  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕]
+└─ ⌨ build                      vite build       [▶]
+```
+
+### Usage
+
+1. Open the panel via the npm-run icon in the activity bar
+2. Expand a project → click ▶ on a script row to run it
+3. A running script auto-expands its services:
+   - ⟳ on a service row restarts **only that service** (others unaffected), ✕ kills just that one; if the script has a single service, ⟳ restarts the whole script directly (always equivalent)
+   - ⟳ on the script row restarts the whole script, ■ stops it
+4. Click the script name or the 📄 button to view live output
+5. If the launcher process exits (e.g. `concurrently`) while separately-restarted services keep running, the script row shows an **adopted** state; services stay tracked and are cleaned up together on stop
+
+### Configuration
+
+| Setting | Default | Description |
+|---|---|---|
+| `npm-run.exclude` | `["**/node_modules/**", ...]` | Glob patterns excluded when scanning for package.json |
+| `npm-run.pollIntervalMs` | `1500` | Port/process poll interval in ms; changes apply immediately |
 
 ## License
 

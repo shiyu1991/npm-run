@@ -3,6 +3,9 @@ import * as vscode from 'vscode';
 import { NpmProject, RunningScript, ServiceInfo } from './types';
 import { extractConflictPort } from './errorParse';
 import { killProcessTree } from './killTree';
+import { snapshotPorts, snapshotProcesses } from './sysSnapshot';
+import { buildProcessIndex, collectSubtreePids } from './processTree';
+import { t } from './i18n';
 
 export { killProcessTree };
 
@@ -65,7 +68,7 @@ export class ScriptRunner {
   run(project: NpmProject, script: string, events: RunnerEvents): RunningScript {
     const key = instanceKey(project, script);
     if (this.isRunning(project, script)) {
-      throw new Error('脚本已在运行中');
+      throw new Error(t.alreadyRunning);
     }
 
     const output = this.getOrCreateChannel(key, project, script);
@@ -121,16 +124,16 @@ export class ScriptRunner {
     child.stderr?.on('data', (d: Buffer) => feed(d.toString('utf8'), true));
 
     child.on('error', (err) => {
-      output.appendLine(`\n[npm-run] 进程启动失败: ${err.message}`);
+      output.appendLine(`\n[npm-run] ${t.spawnFail(err.message)}`);
       this.finish(key, instance, events, null);
     });
     child.on('close', (code) => {
-      output.appendLine(`\n[npm-run] 脚本已退出（代码 ${code ?? 'null'}）`);
+      output.appendLine(`\n[npm-run] ${t.scriptExited(code ?? 'null')}`);
       this.finish(key, instance, events, code);
     });
 
     output.appendLine(
-      `===== ${new Date().toLocaleTimeString()} 运行: npm run ${script}（PID ${instance.rootPid}，目录 ${project.dir.fsPath}）`
+      t.runHeader(new Date().toLocaleTimeString(), script, instance.rootPid, project.dir.fsPath)
     );
     output.show(true);
     return instance;
@@ -189,7 +192,7 @@ export class ScriptRunner {
    */
   respawnService(inst: RunningScript, svc: ServiceInfo): string {
     if (!svc.cmdline) {
-      return '无法获取该服务的启动命令，不能单独重启';
+      return t.respawnNoCmdline;
     }
     const child = spawn(svc.cmdline, {
       cwd: inst.project.dir.fsPath,
@@ -198,16 +201,14 @@ export class ScriptRunner {
       env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' },
     });
     if (child.pid === undefined) {
-      return `重启服务 :${svc.port} 失败：进程未创建`;
+      return t.respawnFailNoPid(svc.port);
     }
     inst.adoptedPids.add(child.pid);
-    inst.output.appendLine(
-      `[npm-run] 已重启服务 :${svc.port}（新 PID ${child.pid}，命令: ${svc.cmdline}）`
-    );
+    inst.output.appendLine(`[npm-run] ${t.respawned(svc.port, child.pid, svc.cmdline)}`);
     child.stdout?.on('data', (d: Buffer) => inst.output.append(d.toString('utf8')));
     child.stderr?.on('data', (d: Buffer) => inst.output.append(d.toString('utf8')));
     child.on('error', (err) => {
-      inst.output.appendLine(`\n[npm-run] 重启的服务 :${svc.port} 启动失败: ${err.message}`);
+      inst.output.appendLine(`\n[npm-run] ${t.respawnSpawnErr(svc.port, err.message)}`);
       inst.adoptedPids.delete(child.pid!);
     });
     child.on('close', () => {
@@ -215,7 +216,51 @@ export class ScriptRunner {
       // 脚本根已退出且这是最后一个代管进程 → 实例真正终结
       this.finalizeIfGone(inst);
     });
+    this.verifyRespawn(inst, svc.port, child);
     return '';
+  }
+
+  /**
+   * 单服务重启后验证：目标端口应在数秒内由新拉起的进程（或其子进程）恢复监听。
+   * 若新进程很快退出且端口未恢复——典型如 Next.js dev 的 start-server worker
+   * （依赖父进程 IPC/环境，裸拉起立即退出）——明确提示改用整脚本重启，
+   * 避免用户误以为服务已恢复。
+   */
+  private verifyRespawn(inst: RunningScript, port: number, child: ChildProcess): void {
+    let settled = false;
+    const fail = (reason: string) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      inst.output.appendLine(`[npm-run] ${t.verifyFailMsg(port, reason)}`);
+      void vscode.window.showWarningMessage(t.verifyFailQuick(port));
+    };
+    void (async () => {
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline && !settled) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (child.exitCode !== null) {
+          fail(t.verifyFailNewExited);
+          return;
+        }
+        try {
+          const hit = (await snapshotPorts()).find((s) => s.port === port);
+          if (!hit) {
+            continue;
+          }
+          const subtree = collectSubtreePids(child.pid!, buildProcessIndex(await snapshotProcesses()));
+          if (subtree.has(hit.pid)) {
+            settled = true; // 端口已由新进程恢复
+          } else {
+            settled = true; // 端口被其他进程占用：端口冲突流程会另行提示，这里不重复报
+          }
+        } catch {
+          // 快照失败：跳过本轮，继续等待
+        }
+      }
+      fail(t.verifyFailTimeout);
+    })();
   }
 
   /** 停止全部托管脚本（扩展停用时防孤儿进程） */
@@ -244,9 +289,7 @@ export class ScriptRunner {
     // 不清杀代管进程，实例转入"扩展代管"状态继续存活，由 stop/stopAll 统一清理
     if (instance.adoptedPids.size > 0) {
       instance.adoptedOnly = true;
-      instance.output.appendLine(
-        '[npm-run] 启动器进程已结束，剩余服务由扩展代管继续运行（停止脚本将结束全部服务）'
-      );
+      instance.output.appendLine(`[npm-run] ${t.adoptedNotice}`);
       events.onExit(key, instance, code);
       return;
     }

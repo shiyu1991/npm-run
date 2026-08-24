@@ -38,6 +38,8 @@ export interface RunningScript {
   adoptedPids: Set<number>;
   /** 脚本根进程已退出、仅剩代管服务在运行（launcher 类脚本在子进程全部被替换后会自然退出） */
   adoptedOnly?: boolean;
+  /** 本次运行是否已提示过"检测到端口监听"（每次 run 新建实例，天然只提示一次） */
+  firstPortAnnounced?: boolean;
   /** 该实例的输出通道 */
   output: vscode.OutputChannel;
 }

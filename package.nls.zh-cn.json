@@ -1,0 +1,15 @@
+{
+  "displayName": "npm-run Manager",
+  "description": "npm 脚本可视化管理：扫描工作区 npm 项目，一键运行脚本，自动追踪多端口服务，支持按端口单独结束服务（VSCode、Cursor、Windsurf 等 VSCode 系编辑器通用）",
+  "containerTitle": "npm-run",
+  "viewName": "npm 脚本",
+  "cmd.runScript.title": "运行脚本",
+  "cmd.stopScript.title": "停止脚本",
+  "cmd.restartScript.title": "重启脚本",
+  "cmd.restartService.title": "重启此服务",
+  "cmd.showOutput.title": "查看输出",
+  "cmd.killService.title": "结束此服务",
+  "cmd.refresh.title": "刷新项目列表",
+  "config.exclude.description": "扫描 package.json 时排除的 glob 模式",
+  "config.pollIntervalMs.description": "运行中脚本的端口/进程轮询间隔（毫秒）"
+}

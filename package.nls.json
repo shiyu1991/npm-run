@@ -1,0 +1,15 @@
+{
+  "displayName": "npm-run Manager",
+  "description": "Visual npm scripts manager for VSCode and any VSCode-based editor: scan all npm projects in the workspace, run scripts with one click, automatically track every listening port/service of the script, and kill or restart a single service by port (VSCode, Cursor, Windsurf, etc.)",
+  "containerTitle": "npm-run",
+  "viewName": "npm scripts",
+  "cmd.runScript.title": "Run Script",
+  "cmd.stopScript.title": "Stop Script",
+  "cmd.restartScript.title": "Restart Script",
+  "cmd.restartService.title": "Restart This Service",
+  "cmd.showOutput.title": "Show Output",
+  "cmd.killService.title": "Kill This Service",
+  "cmd.refresh.title": "Refresh Project List",
+  "config.exclude.description": "Glob patterns excluded when scanning for package.json",
+  "config.pollIntervalMs.description": "Port/process poll interval for running scripts (ms)"
+}

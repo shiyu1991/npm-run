@@ -3,6 +3,7 @@ import { buildProcessIndex, collectSubtreePids } from './processTree';
 import { ServiceSnapshot, diffServices } from './serviceDiff';
 import { RunningScript, ServiceInfo } from './types';
 import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
+import { t } from './i18n';
 
 /** 服务条目（端口快照查到的占用者） */
 export interface PortOwner {
@@ -108,6 +109,13 @@ export class ServiceMonitor {
           }
           inst.services = services;
           changed = true;
+          // 首次检测到端口监听：提示用户应用正在启动，消除 Starting→Ready
+          // 静默窗口期的"卡死"误判（Next.js 等框架二次启动 Ready 前可能静默 10s+）
+          if (!inst.firstPortAnnounced && next.size > 0) {
+            inst.firstPortAnnounced = true;
+            const ports = [...next.keys()].sort((a, b) => a - b).map((p) => `:${p}`).join(' ');
+            inst.output.appendLine(`[npm-run] ${t.portListening(ports)}`);
+          }
         }
       }
 

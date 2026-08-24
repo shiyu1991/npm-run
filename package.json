@@ -1,8 +1,8 @@
 {
   "name": "npm-run-manager",
-  "displayName": "npm-run Manager",
-  "description": "npm 脚本可视化管理：扫描工作区 npm 项目，一键运行脚本，自动追踪多端口服务，支持按端口单独结束服务（VSCode、Cursor、Windsurf 等 VSCode 系编辑器通用）",
-  "version": "0.5.1",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.6.1",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -42,7 +42,7 @@
       "activitybar": [
         {
           "id": "npm-run-container",
-          "title": "npm-run",
+          "title": "%containerTitle%",
           "icon": "media/activitybar.svg"
         }
       ]
@@ -51,7 +51,7 @@
       "npm-run-container": [
         {
           "id": "npm-run.scripts",
-          "name": "npm 脚本",
+          "name": "%viewName%",
           "icon": "media/activitybar.svg"
         }
       ]
@@ -59,43 +59,43 @@
     "commands": [
       {
         "command": "npm-run.runScript",
-        "title": "运行脚本",
+        "title": "%cmd.runScript.title%",
         "icon": "$(play)",
         "category": "npm-run"
       },
       {
         "command": "npm-run.stopScript",
-        "title": "停止脚本",
+        "title": "%cmd.stopScript.title%",
         "icon": "$(debug-stop)",
         "category": "npm-run"
       },
       {
         "command": "npm-run.restartScript",
-        "title": "重启脚本",
+        "title": "%cmd.restartScript.title%",
         "icon": "$(debug-restart)",
         "category": "npm-run"
       },
       {
         "command": "npm-run.restartService",
-        "title": "重启此服务",
+        "title": "%cmd.restartService.title%",
         "icon": "$(debug-restart)",
         "category": "npm-run"
       },
       {
         "command": "npm-run.showOutput",
-        "title": "查看输出",
+        "title": "%cmd.showOutput.title%",
         "icon": "$(output)",
         "category": "npm-run"
       },
       {
         "command": "npm-run.killService",
-        "title": "结束此服务",
+        "title": "%cmd.killService.title%",
         "icon": "$(close)",
         "category": "npm-run"
       },
       {
         "command": "npm-run.refresh",
-        "title": "刷新项目列表",
+        "title": "%cmd.refresh.title%",
         "icon": "$(refresh)",
         "category": "npm-run"
       }
@@ -162,13 +162,13 @@
             "**/.git/**",
             "**/coverage/**"
           ],
-          "description": "扫描 package.json 时排除的 glob 模式"
+          "description": "%config.exclude.description%"
         },
         "npm-run.pollIntervalMs": {
           "type": "number",
           "default": 1500,
           "minimum": 500,
-          "description": "运行中脚本的端口/进程轮询间隔（毫秒）"
+          "description": "%config.pollIntervalMs.description%"
         }
       }
     }

@@ -7,6 +7,7 @@ import { killProcessTree } from './killTree';
 import { NpmRunTreeProvider, TreeNode } from './treeProvider';
 import { NpmProject, RunningScript } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
+import { t } from './i18n';
 
 let runner: ScriptRunner | undefined;
 
@@ -51,29 +52,29 @@ export function activate(context: vscode.ExtensionContext): void {
         }
         if (collectSubtreePids(other.rootPid, index).has(owner.pid)) {
           void vscode.window.showWarningMessage(
-            `端口 ${port} 被脚本「${other.project.name} · ${other.script}」占用，请先停止该脚本后重试`
+            t.conflictOwnedByScript(port, other.project.name, other.script)
           );
           return;
         }
       }
       // 外部进程占用
       const pick = await vscode.window.showErrorMessage(
-        `端口 ${port} 被外部进程（PID ${owner.pid}）占用，脚本「${inst.script}」服务启动失败`,
-        '结束占用进程',
-        '忽略'
+        t.conflictExternal(port, owner.pid, inst.script),
+        t.killOccupier,
+        t.ignore
       );
-      if (pick === '结束占用进程') {
+      if (pick === t.killOccupier) {
         const confirm = await vscode.window.showWarningMessage(
-          `即将结束外部进程 PID ${owner.pid}（${owner.addresses.join(', ')}），确定继续？`,
+          t.confirmKillExternal(owner.pid, owner.addresses.join(', ')),
           { modal: true },
-          '结束进程'
+          t.confirmKillBtn
         );
-        if (confirm === '结束进程') {
+        if (confirm === t.confirmKillBtn) {
           const err = await killProcessTree(owner.pid);
           if (err) {
             void vscode.window.showErrorMessage(err);
           } else {
-            void vscode.window.showInformationMessage(`进程 PID ${owner.pid} 已结束`);
+            void vscode.window.showInformationMessage(t.processKilled(owner.pid));
           }
         }
       }
@@ -100,7 +101,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const startScript = async (project: NpmProject, script: string) => {
     if (runner!.isRunning(project, script)) {
-      void vscode.window.showWarningMessage('脚本已在运行中，请先停止');
+      void vscode.window.showWarningMessage(t.warnAlreadyRunning);
       return;
     }
     try {
@@ -109,7 +110,7 @@ export function activate(context: vscode.ExtensionContext): void {
       monitor.attach(instanceKey(project, script), inst);
       provider.refresh();
     } catch (e) {
-      void vscode.window.showErrorMessage(`启动失败: ${e instanceof Error ? e.message : String(e)}`);
+      void vscode.window.showErrorMessage(t.startFail(e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -126,7 +127,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const err = await runner!.stop(node.project, node.script);
     if (err) {
-      void vscode.window.showErrorMessage(`停止失败: ${err}`);
+      void vscode.window.showErrorMessage(t.stopFail(err));
       return;
     }
     // close 事件触发后由 onExit 清理并刷新
@@ -146,16 +147,16 @@ export function activate(context: vscode.ExtensionContext): void {
       return; // 一次重启还在进行中，忽略重复触发
     }
     if (!runner!.isRunning(project, script)) {
-      void vscode.window.showWarningMessage('脚本未在运行');
+      void vscode.window.showWarningMessage(t.notRunning);
       return;
     }
     restarting.add(key);
     try {
       // 立即给出反馈，避免用户以为没点上而再点
-      instances.get(key)?.output.appendLine('[npm-run] 正在重启...');
+      instances.get(key)?.output.appendLine(`[npm-run] ${t.restarting}`);
       const err = await runner!.stop(project, script);
       if (err) {
-        void vscode.window.showErrorMessage(`停止失败: ${err}`);
+        void vscode.window.showErrorMessage(t.stopFail(err));
         return;
       }
       // 等 close 事件完成实例清理后再启动，否则会被"已在运行中"拦截
@@ -178,16 +179,24 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!svc || svc.isRoot) {
       return; // 根进程服务走 restartScript（菜单已分流）
     }
+    // 实例仅此一个服务：单服务重启在效果上必然等于整脚本重启
+    //（杀掉唯一服务会导致 launcher 类脚本整体退出，如 Next.js dev 的
+    // start-server worker 死后主进程随之退出），直接转发整脚本重启一步到位
+    if (node.instance.services.size <= 1) {
+      node.instance.output.appendLine(`[npm-run] ${t.singleServiceRedirect(svc.port)}`);
+      await restartScript(node);
+      return;
+    }
     const guard = `${instanceKey(node.project, node.script)}|${node.port}`;
     if (restartingServices.has(guard)) {
       return;
     }
     restartingServices.add(guard);
     try {
-      node.instance.output.appendLine(`[npm-run] 正在重启服务 :${svc.port}...`);
+      node.instance.output.appendLine(`[npm-run] ${t.restartingService(svc.port)}`);
       const killErr = await killProcessTree(svc.pid);
       if (killErr) {
-        void vscode.window.showErrorMessage(`重启服务失败: ${killErr}`);
+        void vscode.window.showErrorMessage(t.restartServiceFail(killErr));
         return;
       }
       const err = runner!.respawnService(node.instance, svc);
@@ -215,17 +224,15 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     if (svc.isRoot) {
-      void vscode.window.showWarningMessage(
-        '该服务由脚本主进程监听，请停止整个脚本（■ 按钮）'
-      );
+      void vscode.window.showWarningMessage(t.killRootService);
       return;
     }
     const err = await killProcessTree(svc.pid);
     if (err) {
-      void vscode.window.showErrorMessage(`结束服务失败: ${err}`);
+      void vscode.window.showErrorMessage(t.killServiceFail(err));
       return;
     }
-    node.instance.output.appendLine(`[npm-run] 已结束服务 :${svc.port}（PID ${svc.pid}）`);
+    node.instance.output.appendLine(`[npm-run] ${t.serviceKilled(svc.port, svc.pid)}`);
     // 下一轮监控 tick 会自动从服务列表移除
   };
 

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { NpmProject, RunningScript } from './types';
+import { t } from './i18n';
 
 export type TreeNode =
   | { kind: 'project'; project: NpmProject }
@@ -28,7 +29,7 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         vscode.TreeItemCollapsibleState.Expanded
       );
       item.iconPath = new vscode.ThemeIcon('package');
-      item.description = `${node.project.scripts.size} 个脚本`;
+      item.description = t.scriptsCount(node.project.scripts.size);
       item.tooltip = node.project.dir.fsPath;
       item.contextValue = 'project';
       return item;
@@ -42,18 +43,18 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         running ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None
       );
       item.contextValue = running ? 'script-running' : 'script';
-      item.description = running ? (adoptedOnly ? '扩展代管' : '运行中') : node.command;
+      item.description = running ? (adoptedOnly ? t.adopted : t.running) : node.command;
       item.tooltip = running
         ? `npm run ${node.script}${
-            adoptedOnly ? '（脚本进程已退出，服务由扩展代管）' : `（PID ${node.instance!.rootPid}）`
+            adoptedOnly ? t.scriptTooltipAdopted : t.scriptTooltipRunning(node.instance!.rootPid)
           }\n${node.command}`
         : `npm run ${node.script}\n${node.command}`;
       item.iconPath = running
         ? new vscode.ThemeIcon('sync~spin')
         : new vscode.ThemeIcon('terminal');
       item.command = running
-        ? { command: 'npm-run.showOutput', title: '查看输出', arguments: [node] }
-        : { command: 'npm-run.runScript', title: '运行脚本', arguments: [node] };
+        ? { command: 'npm-run.showOutput', title: t.showOutput, arguments: [node] }
+        : { command: 'npm-run.runScript', title: t.runScript, arguments: [node] };
       return item;
     }
 
@@ -65,10 +66,8 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     item.contextValue = svc?.isRoot ? 'service-root' : 'service';
     item.description = svc ? `PID ${svc.pid}` : undefined;
     item.tooltip = svc
-      ? `端口 ${svc.port}\n地址 ${svc.addresses.join(', ')}\n进程 PID ${svc.pid}` +
-        (svc.isRoot
-          ? '\n\n该服务由脚本主进程监听\n点击 ⟳ 重启整个脚本'
-          : '\n点击 ⟳ 仅重启此服务\n点击 ✕ 结束此服务')
+      ? t.serviceTooltip(svc.port, svc.addresses.join(', '), svc.pid) +
+        (svc.isRoot ? t.serviceTooltipRoot : t.serviceTooltipChild)
       : undefined;
     return item;
   }
