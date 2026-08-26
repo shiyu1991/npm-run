@@ -1,5 +1,11 @@
 # Changelog / 更新日志
 
+
+## 0.7.3 / 2026-08-26
+
+- Changed: refreshed extension icon and activity-bar icon — rounded play triangle over a progress bar with a centered dot, matching the new style
+- 更换：全新扩展图标与活动栏图标——圆角播放三角 + 居中圆点进度条，风格统一
+
 ## 0.7.2 / 2026-08-26
 
 - New: opening the view (clicking the activity-bar icon) now triggers a refresh automatically — detection stays strictly user-initiated, just with a more natural entry point; a "detecting…" hint shows while the snapshot runs
