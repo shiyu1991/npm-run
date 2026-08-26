@@ -1,0 +1,40 @@
+# npm-run 项目记忆
+
+## 项目定位
+- d:\workspace\npm-run 是 VSCode 扩展 "npm-run Manager"（package.json name: npm-run-manager，当前已发布 0.7.2）
+- 功能：扫描工作区 npm 项目、一键运行脚本、按端口追踪/结束服务、外部脚本运行检测（手动刷新）
+- 构建：esbuild（node esbuild.js），测试：mocha（out-test），仅 Windows 集成测试在 test/integration.test.ts
+- fixtures/app-a 起两个静态 server（45731/45732）；app-b 固定端口 45800
+
+## 0.7.x 外部脚本检测（方案B：手动刷新快照，已装 2026-08-26）
+- 需求：用户在别的 IDE/终端 npm run dev，本扩展刷新后树视图显示"外部运行中"
+- src/externalDetect.ts（纯逻辑可单测）：matchExternalScripts(procs, sockets, projects, excludePids) → Map<dir|script, ExternalHit>，**按"run 层链"组织（0.7.2 定稿）**
+  - 链根 = 祖先中无其他 run 层的最顶层进程（如 powershell -Command "npm run dev" 终端包装层）；链内任一 pid 在排除集 → 整链跳过
+  - **A 级（确定归属）**：链内非 run 层进程 cmdline 含 `<项目dir>\node_modules\`（normPath 规范化）→ 挂该项目，needle 更长者优先；脚本名须在该项目声明中
+  - **C 级（确定排除）**：链内有 node_modules 路径但不指向工作区任何项目（其他 IDE 的工作区外项目）→ 不显示。关键：链上 run 层自身的包管理器全局路径（C:\Program Files\nodejs\node_modules\npm\...）不算证据，否则 npm 中间层会误触 C 级
+  - **B 级（唯一候选）**：链内完全无路径证据（node launcher.js 相对路径脚本，app-a 类）→ 候选 = 声明该 script 的工作区项目，仅唯一候选时挂；多候选（如 fixtures app-a/app-b 都有 dev）宁缺毋滥不显示
+  - extractScriptToken：显式 `npm|pnpm|yarn... run <token>` 优先；pnpm/yarn 简写兜底（排除 50+ 内置命令）；token 完整词防 dev 误配 dev:watch
+- 0.7.2 新增：treeView.onDidChangeVisibility(visible) → 自动 refresh（点活动栏图标展开即检测，仍属用户主动触发）；refreshing 防并发标志 + treeView.message "正在扫描项目并检测外部脚本…"（i18n t.detecting）
+- ExternalHit：runPid（链根，kill 的树根）、pids、cmdline、ports（链子树内监听端口）
+- extension.ts：externalRunning Map<key, ExternalState{hit,detectedAt}>（clear+set）；refresh = scanner.refresh + detectExternal + provider.refresh；startScript 外部命中先弹警告，自身启动成功后 delete 条目；killExternal（modal 确认 → killProcessTree(runPid)）
+- treeProvider：三态 script / script-running / script-external（circle-filled，"外部运行中 · PID"，tooltip 含 cmdline+检测时间，点击行=重新刷新）；external-port 只读子节点
+- 测试：test/externalDetect.test.ts 18 用例（C 级 IDEA 回归、B 级唯一候选/多候选、链根全局路径不算证据等）；全量 59 过；tsc 干净
+- **端到端已实测**（真实快照 + 新模块）：本仓库 npm run watch（A 级，esbuild.exe service 子进程提供路径）✓；fixtures/app-a npm run dev（B 级，唯一候选时）✓ runPid 正确指向 powershell 链根；IDEA 的 nuxt/next dev 链（C 级）正确不显示
+- 0.7.2.vsix（49.83KB，13 文件）已装 CodeBuddy；**已发布双市场（2026-08-26）：Marketplace DONE、Open VSX latest=0.7.2 均验证通过；git 由用户自行提交推送（203e907）**
+- 诊断经验：Win32_Process 是唯一真相源；esbuild CLI 参数在外层 PowerShell 易出问题，用 esbuild JS API 写 .cjs 脚本打包临时模块最稳
+
+## 历史要点（详见 git log / CHANGELOG）
+- 0.6.x：i18n 双语（代码走 src/i18n.ts 按 vscode.env.language；清单走 package.nls.*.json）+ manifest 本地化；已发布 VSCode Marketplace 与 Open VSX
+- 0.5.x：firstPortAnnounced 消除 Next.js Starting→Ready 静默误判；单服务重启 verifyRespawn；单服务脚本重启恒等整脚本重启
+- Next.js dev 的端口监听者 start-server.js 是 worker 模式（依赖父 IPC），裸拉起即退出——单服务重启对 Next.js 无效属框架行为
+
+## 环境事实（跨会话有用）
+- CodeBuddy CN 的扩展实际装在 C:\Users\HeShiyu\.codebuddycn\extensions\（不是 .codebuddy）
+- CodeBuddy CLI：C:\Users\HeShiyu\AppData\Local\Programs\CodeBuddy CN\bin\buddycn.cmd（不在 PATH）；装完 VSIX 必须重载窗口
+- PowerShell 会吞 $ 和 $_，复杂命令写 .ps1 再 -File；不支持 cd /d 与 head
+- nls 语言解析只看编辑器显示语言；Open VSX 验证用 /api/<ns>/<ext>/<version> 端点
+- .vscodeignore 会覆盖 vsce 默认排除规则，需显式列 src/**、out-test/** 等
+
+## 发布流程（0.6.1 先例）
+- vsce publish -p <PAT>（Marketplace）；npx ovsx publish <vsix> -p <token>（Open VSX，Cursor/CodeBuddy 实际源）
+- 检查：tsc 干净、全量测试过、CHANGELOG 双语条目、版本号对齐

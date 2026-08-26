@@ -3,5 +3,4 @@ dist/
 out-test/
 *.vsix
 .vscode-test/
-.codebuddy
 .idea/
