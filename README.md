@@ -14,6 +14,7 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 - **一键运行**：脚本行内 ▶ 按钮运行，输出实时流入输出面板（按脚本复用，保留历史）
 - **多端口服务追踪**：脚本运行后自动发现其进程树监听的所有端口，作为服务子节点实时增删——一个脚本跑出多个服务一目了然
 - **服务管理**：服务节点显示 IP + 端口，可单独结束某一个服务（如 `concurrently` 同时起的 3 个服务只杀 1 个），也可单独重启某一个服务，其余不受影响
+- **外部脚本检测**：在别的 IDE / 终端启动的 `npm run dev` 也能看到——打开面板或点击刷新时做一次进程快照，通过命令行中的 `node_modules` 路径把外部脚本精确匹配回项目（npm / pnpm / yarn 均支持），显示"外部运行中 · PID"及其监听端口，可一键结束；检测为用户触发的快照式，无后台轮询
 - **端口冲突处理**：脚本因端口被占（`EADDRINUSE`）失败时，自动区分"被自己其他脚本占用"与"被外部进程占用"，后者提供二次确认的一键结束
 - **安全退出**：关闭窗口 / 卸载扩展时自动清理全部进程树，不残留孤儿进程
 
@@ -24,18 +25,21 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 ├─ ⌨ dev (运行中)               vite --host   [⟳ ■ 📄]
 │  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕]
 │  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕]
+├─ ⌨ preview (外部运行中 · PID 8821)            [▶ ✕]
+│  └─ 📡 127.0.0.1:4173               PID 8835
 └─ ⌨ build                      vite build       [▶]
 ```
 
 ### 使用
 
-1. 点击活动栏 npm-run 图标打开面板
+1. 点击活动栏 npm-run 图标打开面板（打开或点击刷新时自动检测外部运行的脚本）
 2. 展开项目 → 点击脚本行右侧 ▶ 运行
 3. 运行中脚本自动展开服务列表：
    - 服务行点 ⟳ **仅重启该服务**（其余服务不受影响），点 ✕ 单独结束；若脚本只有这一个服务，⟳ 会直接重启整个脚本（效果必然等价）
    - 脚本行点 ⟳ 重启整个脚本，点 ■ 停止整个脚本
 4. 点击脚本名或 📄 按钮查看实时输出
 5. 若启动器进程退出（如 `concurrently` 场景）但仍有被单独重启过的服务在跑，脚本行显示**扩展代管**，服务继续被追踪，停止时统一清理
+6. **外部运行中**的脚本（在别的 IDE / 终端启动）：显示 ● 实心圆图标与外部 PID，展开可见其监听端口；点 ▶ 运行前会提示可能端口冲突，点 ✕ 结束外部进程树；检测结果为快照，点击该行或刷新按钮重新检测
 
 ### 配置
 
@@ -52,6 +56,7 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 - **One-click run**: inline ▶ button per script (⟳ restarts the whole script, ■ stops it); output streams into a per-script output channel
 - **Multi-port service tracking**: automatically discovers every listening port of the script's process tree and shows them as service children — one script, multiple services, at a glance
 - **Per-service control**: each service node shows IP + port with ⟳ restart and ✕ kill buttons; restart or kill just one service (e.g. one of three started via `concurrently`) without touching the others
+- **External script detection**: scripts started outside the extension (another IDE, a terminal) are visible too — opening the panel or clicking refresh takes a one-shot process snapshot and matches external `npm run` commands back to their project via the `node_modules` path in the process command line (npm / pnpm / yarn supported), showing "external · PID" with its listening ports and a one-click kill; detection is strictly user-triggered, no background polling
 - **Port conflict handling**: on `EADDRINUSE`, tells you whether the port is held by another of *your* scripts or an external process, and offers a confirmed one-click kill for the latter
 - **Clean exit**: kills all process trees when the window closes or the extension is deactivated — no orphan processes
 
@@ -62,18 +67,21 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 ├─ ⌨ dev (running)              vite --host   [⟳ ■ 📄]
 │  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕]
 │  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕]
+├─ ⌨ preview (external · PID 8821)              [▶ ✕]
+│  └─ 📡 127.0.0.1:4173               PID 8835
 └─ ⌨ build                      vite build       [▶]
 ```
 
 ### Usage
 
-1. Open the panel via the npm-run icon in the activity bar
+1. Open the panel via the npm-run icon in the activity bar (opening it or clicking refresh also detects externally started scripts)
 2. Expand a project → click ▶ on a script row to run it
 3. A running script auto-expands its services:
    - ⟳ on a service row restarts **only that service** (others unaffected), ✕ kills just that one; if the script has a single service, ⟳ restarts the whole script directly (always equivalent)
    - ⟳ on the script row restarts the whole script, ■ stops it
 4. Click the script name or the 📄 button to view live output
 5. If the launcher process exits (e.g. `concurrently`) while separately-restarted services keep running, the script row shows an **adopted** state; services stay tracked and are cleaned up together on stop
+6. **Externally started** scripts (from another IDE / terminal): shown with a ● filled-circle icon and the external PID, expandable to their listening ports; ▶ warns about possible port conflicts before running, ✕ kills the external process tree; results are snapshot-based — click the row or the refresh button to re-detect
 
 ### Configuration
 

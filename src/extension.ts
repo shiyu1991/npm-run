@@ -322,7 +322,8 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   /** 结束外部运行的脚本进程树（以检测到的包管理器 run 层为根） */
-  const killExternal = async (node?: TreeNode) => {    if (!node || node.kind !== 'script' || !node.external) {
+  const killExternal = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'script' || !node.external) {
       return;
     }
     const { hit } = node.external;
