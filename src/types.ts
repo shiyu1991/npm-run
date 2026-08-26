@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ExternalHit } from './externalDetect';
 
 /** 工作区内扫描到的一个 npm 项目 */
 export interface NpmProject {
@@ -42,4 +43,11 @@ export interface RunningScript {
   firstPortAnnounced?: boolean;
   /** 该实例的输出通道 */
   output: vscode.OutputChannel;
+}
+
+/** 外部运行检测结果（手动刷新快照的包装，hit 之上附检测时间） */
+export interface ExternalState {
+  hit: ExternalHit;
+  /** 检测时间戳（ms） */
+  detectedAt: number;
 }

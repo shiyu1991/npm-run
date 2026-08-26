@@ -1,5 +1,26 @@
 # Changelog / 更新日志
 
+## 0.7.2 / 2026-08-26
+
+- New: opening the view (clicking the activity-bar icon) now triggers a refresh automatically — detection stays strictly user-initiated, just with a more natural entry point; a "detecting…" hint shows while the snapshot runs
+- Improved: three-tier evidence matching. Scripts with no path evidence (e.g. `node launcher.js` relative-path commands, which the previous release could never detect) are now detected when exactly one workspace project declares that script name; a process chain whose `node_modules` paths point outside the workspace (other IDEs' projects) is deterministically excluded; exact `node_modules` path anchoring remains the strongest evidence
+- 新增：点击活动栏图标展开视图即自动刷新——检测仍严格由用户主动触发，只是入口更自然；快照期间显示"检测中…"提示
+- 改进：三级证据匹配。无路径凭据的脚本（如 `node launcher.js` 相对路径命令，上一版完全检测不到）在工作区内仅一个项目声明该脚本名时可被检测；进程链内 `node_modules` 路径指向工作区外（其他 IDE 的项目）时被确定性排除；`node_modules` 路径精确锚定仍是最强证据
+
+## 0.7.1 / 2026-08-26
+
+- Fixed: external detection no longer guesses by script name — a `npm run dev` started in another project outside the workspace (e.g. from IDEA) is no longer wrongly shown under a workspace project that happens to declare the same script name. Only exact evidence counts: the process command line must contain that project's `node_modules` path. Scripts without path evidence (e.g. bare `node server.js`) are now honestly not shown instead of guessed
+- 修复：外部检测不再按脚本名猜测——工作区外的其他项目（如 IDEA 里）启动的 `npm run dev` 不会再错误显示到恰好声明了同名脚本的工作区项目下。只认精确证据：进程命令行必须包含该项目的 `node_modules` 路径。无路径凭据的脚本（如裸 `node server.js`）宁可诚实不显示，也不再猜测
+
+## 0.7.0 / 2026-08-26
+
+- New: external script detection — click the refresh button in the tree view to take a one-shot process/port snapshot and mark scripts started outside the extension (other IDEs, terminals) as "external · PID xxxx", with their listening ports shown as read-only child rows; detection is snapshot-based (no background polling), run again by clicking refresh
+- New: scripts started via npm / pnpm / yarn are matched back to their project through the `node_modules` path in the process command line (exact match); matches without path evidence are labeled "possibly external" instead of pretending to be sure
+- New: running a script that appears to run externally asks for confirmation first (possible port conflict); the new "Kill External Process" action ends the external process tree after a modal confirm
+- 新增：外部脚本检测——点击树视图刷新按钮做一次进程/端口快照，把在扩展外（其他 IDE、终端）启动的脚本标注为"外部运行中 · PID xxxx"，其监听端口以只读子行展示；检测为快照式（无后台轮询），再次点击刷新即重新检测
+- 新增：npm / pnpm / yarn 启动的脚本通过进程命令行中的 `node_modules` 路径精确匹配回所属项目；无路径凭据的匹配标"疑似外部运行中"，不装作确定
+- 新增：对疑似外部运行中的脚本点运行会先弹确认（防端口冲突）；新增"结束外部进程"操作，modal 确认后结束整条外部进程树
+
 ## 0.6.1 / 2026-08-24
 
 - Improved: static texts in the manifest (view name, command titles, configuration descriptions, extension description) are now localized via `package.nls.json` / `package.nls.zh-cn.json` — the whole extension is bilingual now

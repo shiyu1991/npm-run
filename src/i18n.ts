@@ -16,10 +16,29 @@ const zhDict = {
   scriptTooltipAdopted: '（脚本进程已退出，服务由扩展代管）',
   showOutput: '查看输出',
   runScript: '运行脚本',
+  refreshTitle: '刷新并检测外部脚本',
   serviceTooltip: (port: number, addrs: string, pid: number) =>
     `端口 ${port}\n地址 ${addrs}\n进程 PID ${pid}`,
   serviceTooltipRoot: '\n\n该服务由脚本主进程监听\n点击 ⟳ 重启整个脚本',
   serviceTooltipChild: '\n点击 ⟳ 仅重启此服务\n点击 ✕ 结束此服务',
+
+  // ── 外部运行检测（手动刷新快照） ──
+  externalRunning: (pid: number) => `外部运行中 · PID ${pid}`,
+  externalTooltip: (cmdline: string | undefined, time: string) =>
+    cmdline
+      ? `外部进程（非本扩展启动）\n命令行: ${cmdline}\n检测于 ${time}，点击刷新重新检测`
+      : `外部进程（非本扩展启动）\n检测于 ${time}，点击刷新重新检测`,
+  externalPortTooltip: (port: number, addrs: string, pid: number) =>
+    `端口 ${port}\n地址 ${addrs}\n进程 PID ${pid}\n外部进程监听，仅展示（无法查看输出/重启）`,
+  externalRunWarning: (pid: number, script: string) =>
+    `检测到「${script}」可能有外部进程在运行（PID ${pid}），继续启动可能发生端口冲突。仍要运行吗？`,
+  continueRun: '仍然运行',
+  cancel: '取消',
+  confirmKillExternalScript: (pids: string, script: string) =>
+    `即将结束外部运行的「${script}」进程树（${pids}），确定继续？`,
+  externalKilled: (pid: number) => `外部进程（PID ${pid}）已结束`,
+  killExternalFail: (msg: string) => `结束外部进程失败: ${msg}`,
+  detecting: '正在扫描项目并检测外部脚本…',
 
   // ── 运行器 / 输出面板 ──
   alreadyRunning: '脚本已在运行中',
@@ -78,10 +97,29 @@ const enDict: typeof zhDict = {
   scriptTooltipAdopted: ' (launcher exited, services adopted by the extension)',
   showOutput: 'Show Output',
   runScript: 'Run Script',
+  refreshTitle: 'Refresh & detect external scripts',
   serviceTooltip: (port: number, addrs: string, pid: number) =>
     `Port ${port}\nAddresses ${addrs}\nProcess PID ${pid}`,
   serviceTooltipRoot: '\n\nListened by the script main process\nClick ⟳ to restart the whole script',
   serviceTooltipChild: '\nClick ⟳ to restart only this service\nClick ✕ to kill this service',
+
+  // ── External run detection (manual refresh snapshot) ──
+  externalRunning: (pid: number) => `external · PID ${pid}`,
+  externalTooltip: (cmdline: string | undefined, time: string) =>
+    cmdline
+      ? `External process (not started by this extension)\nCommand: ${cmdline}\nDetected at ${time}; click refresh to re-detect`
+      : `External process (not started by this extension)\nDetected at ${time}; click refresh to re-detect`,
+  externalPortTooltip: (port: number, addrs: string, pid: number) =>
+    `Port ${port}\nAddresses ${addrs}\nProcess PID ${pid}\nListened by an external process; display only (no output/restart)`,
+  externalRunWarning: (pid: number, script: string) =>
+    `"${script}" may already be running externally (PID ${pid}); starting it again may cause a port conflict. Run anyway?`,
+  continueRun: 'Run anyway',
+  cancel: 'Cancel',
+  confirmKillExternalScript: (pids: string, script: string) =>
+    `About to kill the externally running "${script}" process tree (${pids}). Continue?`,
+  externalKilled: (pid: number) => `External process (PID ${pid}) terminated`,
+  killExternalFail: (msg: string) => `Failed to kill external process: ${msg}`,
+  detecting: 'Scanning projects & detecting external scripts…',
 
   // ── Runner / output panel ──
   alreadyRunning: 'Script is already running',

@@ -9,6 +9,7 @@
   "cmd.restartService.title": "Restart This Service",
   "cmd.showOutput.title": "Show Output",
   "cmd.killService.title": "Kill This Service",
+  "cmd.killExternal.title": "Kill External Process",
   "cmd.refresh.title": "Refresh Project List",
   "config.exclude.description": "Glob patterns excluded when scanning for package.json",
   "config.pollIntervalMs.description": "Port/process poll interval for running scripts (ms)"

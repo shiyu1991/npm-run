@@ -2,7 +2,7 @@
   "name": "npm-run-manager",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.6.1",
+  "version": "0.7.2",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -94,6 +94,12 @@
         "category": "npm-run"
       },
       {
+        "command": "npm-run.killExternal",
+        "title": "%cmd.killExternal.title%",
+        "icon": "$(close)",
+        "category": "npm-run"
+      },
+      {
         "command": "npm-run.refresh",
         "title": "%cmd.refresh.title%",
         "icon": "$(refresh)",
@@ -112,6 +118,16 @@
         {
           "command": "npm-run.runScript",
           "when": "view == npm-run.scripts && viewItem == script",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.runScript",
+          "when": "view == npm-run.scripts && viewItem == script-external",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.killExternal",
+          "when": "view == npm-run.scripts && viewItem == script-external",
           "group": "inline"
         },
         {

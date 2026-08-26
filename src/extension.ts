@@ -5,8 +5,9 @@ import { ServiceMonitor } from './serviceMonitor';
 import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
 import { killProcessTree } from './killTree';
 import { NpmRunTreeProvider, TreeNode } from './treeProvider';
-import { NpmProject, RunningScript } from './types';
+import { NpmProject, RunningScript, ExternalState } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
+import { matchExternalScripts } from './externalDetect';
 import { t } from './i18n';
 
 let runner: ScriptRunner | undefined;
@@ -15,8 +16,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const scanner = new ProjectScanner();
   runner = new ScriptRunner();
   const instances = new Map<string, RunningScript>();
+  /** 外部运行检测结果（key 与 instances 同构）：手动刷新快照式更新 */
+  const externalRunning = new Map<string, ExternalState>();
 
-  const provider = new NpmRunTreeProvider(scanner, instances, instanceKey);
+  const provider = new NpmRunTreeProvider(scanner, instances, instanceKey, externalRunning);
   const treeView = vscode.window.createTreeView('npm-run.scripts', {
     treeDataProvider: provider,
     showCollapseAll: true,
@@ -104,10 +107,26 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.window.showWarningMessage(t.warnAlreadyRunning);
       return;
     }
+    const key = instanceKey(project, script);
+    // 外部疑似运行中：提示可能端口冲突，用户确认后再启动
+    const ext = externalRunning.get(key);
+    if (ext) {
+      const evidencePid = ext.hit.pids[0];
+      const pick = await vscode.window.showWarningMessage(
+        t.externalRunWarning(evidencePid, script),
+        t.continueRun,
+        t.cancel
+      );
+      if (pick !== t.continueRun) {
+        return;
+      }
+    }
     try {
       const inst = runner!.run(project, script, runnerEvents);
-      instances.set(instanceKey(project, script), inst);
-      monitor.attach(instanceKey(project, script), inst);
+      instances.set(key, inst);
+      monitor.attach(key, inst);
+      // 自身实例接管该脚本：清掉外部检测条目，避免自身停止后陈旧"外部运行中"复现
+      externalRunning.delete(key);
       provider.refresh();
     } catch (e) {
       void vscode.window.showErrorMessage(t.startFail(e instanceof Error ? e.message : String(e)));
@@ -236,8 +255,95 @@ export function activate(context: vscode.ExtensionContext): void {
     // 下一轮监控 tick 会自动从服务列表移除
   };
 
+  /** 外部脚本检测：一次进程+端口快照 → cmdline 证据匹配 → 更新 externalRunning（快照失败保留上次结果） */
+  async function detectExternal(): Promise<void> {
+    try {
+      const [procs, sockets] = await Promise.all([snapshotProcesses(), snapshotPorts()]);
+      // 排除集 = 自身实例整链（rootPid 子树 + 代管进程子树）
+      const index = buildProcessIndex(procs);
+      const exclude = new Set<number>();
+      for (const inst of instances.values()) {
+        for (const pid of collectSubtreePids(inst.rootPid, index)) {
+          exclude.add(pid);
+        }
+        for (const apid of inst.adoptedPids) {
+          exclude.add(apid);
+          for (const pid of collectSubtreePids(apid, index)) {
+            exclude.add(pid);
+          }
+        }
+      }
+      const projects = scanner.projects.map((p) => ({
+        dir: p.dir.fsPath,
+        scripts: new Set(p.scripts.keys()),
+      }));
+      const hits = matchExternalScripts(procs, sockets, projects, exclude);
+      const now = Date.now();
+      externalRunning.clear();
+      for (const [key, hit] of hits) {
+        // 自身实例优先（检测期间可能恰有实例启动）
+        if (instances.has(key)) {
+          continue;
+        }
+        externalRunning.set(key, { hit, detectedAt: now });
+      }
+    } catch {
+      // 快照失败（命令不可用等）：静默，保留上次检测结果
+    }
+  }
+
+  /** 刷新进行中标志：防手动点刷新与视图展开触发并发重复检测 */
+  let refreshing = false;
+
   const refresh = async () => {
-    await scanner.refresh();
+    if (refreshing) {
+      return; // 上一轮刷新进行中（手动点 + 视图展开可能同时触发）
+    }
+    refreshing = true;
+    treeView.message = t.detecting;
+    try {
+      await scanner.refresh();
+      await detectExternal();
+      provider.refresh();
+    } finally {
+      treeView.message = undefined;
+      refreshing = false;
+    }
+  };
+
+  // 树视图变为可见（点击活动栏图标展开）时自动刷新 = 用户主动触发的检测入口，
+  // 与手动点刷新按钮等价；不可见时不做任何事
+  context.subscriptions.push(
+    treeView.onDidChangeVisibility((e) => {
+      if (e.visible) {
+        void refresh();
+      }
+    })
+  );
+
+  /** 结束外部运行的脚本进程树（以检测到的包管理器 run 层为根） */
+  const killExternal = async (node?: TreeNode) => {    if (!node || node.kind !== 'script' || !node.external) {
+      return;
+    }
+    const { hit } = node.external;
+    const shown = hit.pids.slice(0, 3).map((p) => `PID ${p}`).join(' / ');
+    const pidList = hit.pids.length > 3 ? `${shown} …` : shown;
+    const confirm = await vscode.window.showWarningMessage(
+      t.confirmKillExternalScript(pidList, node.script),
+      { modal: true },
+      t.confirmKillBtn
+    );
+    if (confirm !== t.confirmKillBtn) {
+      return;
+    }
+    const err = await killProcessTree(hit.runPid);
+    if (err) {
+      void vscode.window.showErrorMessage(t.killExternalFail(err));
+      return;
+    }
+    void vscode.window.showInformationMessage(t.externalKilled(hit.runPid));
+    externalRunning.delete(instanceKey(node.project, node.script));
+    provider.refresh();
   };
 
   context.subscriptions.push(
@@ -251,6 +357,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('npm-run.restartService', restartService),
     vscode.commands.registerCommand('npm-run.showOutput', showOutput),
     vscode.commands.registerCommand('npm-run.killService', killService),
+    vscode.commands.registerCommand('npm-run.killExternal', killExternal),
     vscode.commands.registerCommand('npm-run.refresh', refresh),
     scanner.watch(),
     { dispose: () => monitor.dispose() }

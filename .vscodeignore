@@ -6,6 +6,7 @@ esbuild.js
 tsconfig.json
 test/**
 fixtures/**
+out-test/**
 .idea/**
 .codebuddy/**
 package-lock.json
