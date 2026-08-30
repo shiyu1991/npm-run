@@ -45,6 +45,10 @@
 - nls 语言解析只看编辑器显示语言；Open VSX 验证用 /api/<ns>/<ext>/<version> 端点
 - .vscodeignore 会覆盖 vsce 默认排除规则，需显式列 src/**、out-test/** 等
 
-## 发布流程（0.6.1 先例）
-- vsce publish -p <PAT>（Marketplace）；npx ovsx publish <vsix> -p <token>（Open VSX，Cursor/CodeBuddy 实际源）
-- 检查：tsc 干净、全量测试过、CHANGELOG 双语条目、版本号对齐
+## 发布流程（0.8.1 实践版）
+- Marketplace：`npx vsce publish -p $env:VSCE_PAT`（vsce 不在 PATH，必须 npx）
+- Open VSX：`npx --yes ovsx publish npm-run-manager-<ver>.vsix -p $env:OVSX_PAT`（Cursor/CodeBuddy 实际源）
+- **环境变量不跨命令保留**：设置与发布必须写在同一条命令内
+- **ovsx 输出走 stderr，PowerShell 会误报 ❌**，实际可能已成功；用线上 API 验证才是准的
+- 验证：Open VSX 用 `https://open-vsx.org/api/<ns>/<ext>` 查 latest（带版本号的端点刚发布时可能查不到）；Marketplace 用 `npx vsce show <ns>.<ext>`，发布后需等索引（几分钟到几十分钟）
+- 发前检查：tsc 干净、全量测试过、CHANGELOG 双语条目、package.json 与 package-lock.json 版本号对齐
