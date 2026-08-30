@@ -1,11 +1,10 @@
-import * as vscode from 'vscode';
-
 /**
- * 轻量 i18n：按 vscode.env.language 区分中英文（zh* → 中文，其余 → 英文）。
- * 展示语言在扩展宿主启动时确定，运行期切换显示语言会重启窗口，模块级常量即可。
- * 字典值支持函数（带占位参数）。
+ * 轻量 i18n：zh* → 中文，其余 → 英文。字典值支持函数（带占位参数）。
+ *
+ * 故意不依赖 vscode：语言由 activate() 调用 initLang() 注入。
+ * 这样 killTree 等纯逻辑模块也能安全使用文案——它们必须在无 vscode 的
+ * 环境下可用（Windows 集成测试直接以 node 运行，require('vscode') 会失败）。
  */
-const isZh = vscode.env.language.toLowerCase().startsWith('zh');
 
 const zhDict = {
   // ── 树视图 ──
@@ -96,6 +95,7 @@ const zhDict = {
   restartingService: (port: number) => `正在重启服务 :${port}...`,
   killRootService: '该服务由脚本主进程监听，请停止整个脚本（■ 按钮）',
   killServiceFail: (msg: string) => `结束服务失败: ${msg}`,
+  taskkillFail: (msg: string) => `taskkill 失败: ${msg}`,
   serviceKilled: (port: number, pid: number) => `已结束服务 :${port}（PID ${pid}）`,
 };
 
@@ -190,8 +190,22 @@ const enDict: typeof zhDict = {
   restartingService: (port: number) => `Restarting service :${port}...`,
   killRootService: 'This service is listened by the script main process; stop the whole script (■ button)',
   killServiceFail: (msg: string) => `Kill service failed: ${msg}`,
+  taskkillFail: (msg: string) => `taskkill failed: ${msg}`,
   serviceKilled: (port: number, pid: number) => `Service :${port} killed (PID ${pid})`,
 };
 
-/** 当前语言的词条表；函数型词条调用后返回文案 */
-export const t: typeof zhDict = isZh ? zhDict : enDict;
+/** 当前语言的词条表；未调用 initLang 时（纯 node 环境）回退中文 */
+let current: typeof zhDict = zhDict;
+
+/**
+ * 按编辑器显示语言选定词条表，需在 activate() 中调用一次。
+ * 展示语言在扩展宿主启动时确定，运行期切换显示语言会重启窗口，故只注入一次即可。
+ */
+export function initLang(language: string): void {
+  current = language.toLowerCase().startsWith('zh') ? zhDict : enDict;
+}
+
+/** 词条表访问代理：始终指向当前语言的表（initLang 后可切换） */
+export const t: typeof zhDict = new Proxy({} as typeof zhDict, {
+  get: (_target, key) => (current as unknown as Record<string, unknown>)[key as string],
+}) as typeof zhDict;

@@ -10,11 +10,12 @@ import { NpmRunTreeProvider, TreeNode } from './treeProvider';
 import { NpmProject, RunningScript, ExternalState } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
 import { matchExternalScripts } from './externalDetect';
-import { t } from './i18n';
+import { t, initLang } from './i18n';
 
 let runner: ScriptRunner | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
+  initLang(vscode.env.language);
   const scanner = new ProjectScanner();
   runner = new ScriptRunner();
   const instances = new Map<string, RunningScript>();

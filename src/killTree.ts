@@ -1,5 +1,6 @@
 import { execFile } from 'child_process';
 import { ProcessInfo, buildProcessIndex, collectSubtreePids } from './processTree';
+import { t } from './i18n';
 
 const isWin = process.platform === 'win32';
 
@@ -39,7 +40,7 @@ export async function killProcessTree(pid: number): Promise<string> {
           }
           // taskkill 输出编码随系统 locale（GBK/UTF-8），不可靠；
           // 用 PID 存在性探测判断：目标已不存在（重复停止/先一步退出）视为成功
-          resolve(pidAlive(pid) ? `taskkill 失败: ${err.message}` : '');
+          resolve(pidAlive(pid) ? t.taskkillFail(err.message) : '');
         }
       );
     });
