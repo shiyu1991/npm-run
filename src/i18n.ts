@@ -22,6 +22,12 @@ const zhDict = {
   serviceTooltipRoot: '\n\n该服务由脚本主进程监听\n点击 ⟳ 重启整个脚本',
   serviceTooltipChild: '\n点击 ⟳ 仅重启此服务\n点击 ✕ 结束此服务',
 
+  // ── 内置命令 ──
+  builtinGroup: '常用命令',
+  builtinCount: (n: number) => `${n} 个命令`,
+  builtinGroupTooltip: (pm: string) => `${pm} 常用命令，展开后点击即运行`,
+  inputPackageName: (cmd: string) => `输入包名（将执行 ${cmd}）`,
+
   // ── 浏览器打开 ──
   openInBrowser: '在浏览器打开',
   noPortToOpen: '该脚本当前未检测到监听端口，无法打开',
@@ -49,8 +55,8 @@ const zhDict = {
   alreadyRunning: '脚本已在运行中',
   spawnFail: (msg: string) => `进程启动失败: ${msg}`,
   scriptExited: (code: string | number) => `脚本已退出（代码 ${code}）`,
-  runHeader: (time: string, script: string, pid: number, dir: string) =>
-    `===== ${time} 运行: npm run ${script}（PID ${pid}，目录 ${dir}）`,
+  runHeader: (time: string, cmd: string, pid: number, dir: string) =>
+    `===== ${time} 运行: ${cmd}（PID ${pid}，目录 ${dir}）`,
   adoptedNotice: '启动器进程已结束，剩余服务由扩展代管继续运行（停止脚本将结束全部服务）',
   restarting: '正在重启...',
   // 单服务重启
@@ -108,6 +114,12 @@ const enDict: typeof zhDict = {
   serviceTooltipRoot: '\n\nListened by the script main process\nClick ⟳ to restart the whole script',
   serviceTooltipChild: '\nClick ⟳ to restart only this service\nClick ✕ to kill this service',
 
+  // ── Built-in commands ──
+  builtinGroup: 'Common Commands',
+  builtinCount: (n: number) => `${n} command${n === 1 ? '' : 's'}`,
+  builtinGroupTooltip: (pm: string) => `Common ${pm} commands; expand and click to run`,
+  inputPackageName: (cmd: string) => `Package name (will run ${cmd})`,
+
   // ── Open in browser ──
   openInBrowser: 'Open in Browser',
   noPortToOpen: 'No listening port detected for this script yet',
@@ -135,8 +147,8 @@ const enDict: typeof zhDict = {
   alreadyRunning: 'Script is already running',
   spawnFail: (msg: string) => `Failed to start process: ${msg}`,
   scriptExited: (code: string | number) => `Script exited (code ${code})`,
-  runHeader: (time: string, script: string, pid: number, dir: string) =>
-    `===== ${time} Run: npm run ${script} (PID ${pid}, dir ${dir})`,
+  runHeader: (time: string, cmd: string, pid: number, dir: string) =>
+    `===== ${time} Run: ${cmd} (PID ${pid}, dir ${dir})`,
   adoptedNotice:
     'Launcher process ended; remaining services keep running under extension management (stopping the script will kill them all)',
   restarting: 'Restarting...',

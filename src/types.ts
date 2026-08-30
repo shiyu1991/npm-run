@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ExternalHit } from './externalDetect';
+import { PackageManager } from './builtins';
 
 /** 工作区内扫描到的一个 npm 项目 */
 export interface NpmProject {
@@ -11,6 +12,8 @@ export interface NpmProject {
   packageJsonUri: vscode.Uri;
   /** 脚本名 → 命令 */
   scripts: Map<string, string>;
+  /** 项目使用的包管理器（按 lockfile 判定，缺省 npm） */
+  packageManager: PackageManager;
 }
 
 /** 一个监听端口的服务 */

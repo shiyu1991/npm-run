@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 import { parseProjects, PackageFileInput } from './scanFilter';
+import { detectPackageManager } from './builtins';
 import { NpmProject } from './types';
+
+/** 判定包管理器用的 lockfile（组合 glob 一次扫描，避免逐目录 stat） */
+const LOCKFILE_GLOB = '**/{pnpm-lock.yaml,yarn.lock,package-lock.json}';
+
+/** 目录键：忽略大小写与斜杠方向差异（Windows 盘符大小写不稳定） */
+const dirKey = (p: string): string => p.replace(/\\/g, '/').toLowerCase();
 
 const DEFAULT_EXCLUDE = [
   '**/node_modules/**',
@@ -50,6 +57,20 @@ export class ProjectScanner {
       }
     }
 
+    // 按目录聚合 lockfile 名，用于判定各项目实际使用的包管理器
+    const lockUris = await vscode.workspace.findFiles(LOCKFILE_GLOB, excludeGlob);
+    const lockfiles = new Map<string, string[]>();
+    for (const uri of lockUris) {
+      const dir = dirKey(vscode.Uri.joinPath(uri, '..').fsPath);
+      const name = uri.path.split('/').pop() ?? '';
+      const list = lockfiles.get(dir);
+      if (list) {
+        list.push(name);
+      } else {
+        lockfiles.set(dir, [name]);
+      }
+    }
+
     this._projects = parseProjects(files).map((lite) => {
       const dir = vscode.Uri.file(lite.dir);
       return {
@@ -57,6 +78,7 @@ export class ProjectScanner {
         dir,
         packageJsonUri: vscode.Uri.joinPath(dir, 'package.json'),
         scripts: lite.scripts,
+        packageManager: detectPackageManager(lockfiles.get(dirKey(lite.dir)) ?? []),
       };
     });
     this._onDidChange.fire();

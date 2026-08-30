@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
 import { NpmProject, RunningScript, ExternalState } from './types';
+import { BuiltinCommand, builtinCommands, builtinKey, commandLine } from './builtins';
 import { t } from './i18n';
 
 export type TreeNode =
   | { kind: 'project'; project: NpmProject }
+  | { kind: 'builtin-group'; project: NpmProject }
+  | { kind: 'builtin'; project: NpmProject; command: BuiltinCommand; instance?: RunningScript }
   | {
       kind: 'script';
       project: NpmProject;
@@ -42,6 +45,39 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       item.description = t.scriptsCount(node.project.scripts.size);
       item.tooltip = node.project.dir.fsPath;
       item.contextValue = 'project';
+      return item;
+    }
+
+    if (node.kind === 'builtin-group') {
+      // 默认折叠：常用命令是低频操作，不该挤占脚本列表
+      const item = new vscode.TreeItem(
+        t.builtinGroup,
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      item.iconPath = new vscode.ThemeIcon('tools');
+      item.description = t.builtinCount(builtinCommands(node.project.packageManager).length);
+      item.tooltip = t.builtinGroupTooltip(node.project.packageManager);
+      item.contextValue = 'builtin-group';
+      return item;
+    }
+
+    if (node.kind === 'builtin') {
+      const cmd = node.command;
+      const full = commandLine(node.project.packageManager, cmd.args);
+      const item = new vscode.TreeItem(cmd.label, vscode.TreeItemCollapsibleState.None);
+      if (node.instance) {
+        item.contextValue = 'builtin-running';
+        item.description = t.running;
+        item.tooltip = `${full}\n${t.scriptTooltipRunning(node.instance.rootPid)}`;
+        item.iconPath = new vscode.ThemeIcon('sync~spin');
+        item.command = { command: 'npm-run.showOutput', title: t.showOutput, arguments: [node] };
+      } else {
+        item.contextValue = 'builtin';
+        item.description = full;
+        item.tooltip = full;
+        item.iconPath = new vscode.ThemeIcon('terminal');
+        item.command = { command: 'npm-run.runScript', title: t.runScript, arguments: [node] };
+      }
       return item;
     }
 
@@ -121,7 +157,7 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       return this.scanner.projects.map((project) => ({ kind: 'project', project }));
     }
     if (node.kind === 'project') {
-      return [...node.project.scripts.entries()].map(([script, command]) => {
+      const scripts = [...node.project.scripts.entries()].map(([script, command]) => {
         const key = this.keyOf(node.project, script);
         return {
           kind: 'script' as const,
@@ -132,6 +168,16 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
           external: this.instances.has(key) ? undefined : this.externalRunning.get(key),
         };
       });
+      // 常用命令分组置于脚本之后（脚本是高频操作，排前面）
+      return [...scripts, { kind: 'builtin-group' as const, project: node.project }];
+    }
+    if (node.kind === 'builtin-group') {
+      return builtinCommands(node.project.packageManager).map((command) => ({
+        kind: 'builtin' as const,
+        project: node.project,
+        command,
+        instance: this.instances.get(this.keyOf(node.project, builtinKey(command.id))),
+      }));
     }
     if (node.kind === 'script') {
       const inst = node.instance;

@@ -5,6 +5,7 @@ import { ServiceMonitor } from './serviceMonitor';
 import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
 import { killProcessTree } from './killTree';
 import { toBrowseUrl } from './urlBuilder';
+import { BuiltinCommand, builtinKey, commandLine } from './builtins';
 import { NpmRunTreeProvider, TreeNode } from './treeProvider';
 import { NpmProject, RunningScript, ExternalState } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
@@ -134,18 +135,71 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  /**
+   * 内置命令（install / ci / update / remove / prune / outdated）。
+   * 不接入端口监控：这类命令不监听端口，接入只会白白拉起轮询。
+   */
+  const runBuiltin = async (project: NpmProject, command: BuiltinCommand) => {
+    const name = builtinKey(command.id);
+    if (runner!.isRunning(project, name)) {
+      void vscode.window.showWarningMessage(t.warnAlreadyRunning);
+      return;
+    }
+    let args = command.args;
+    if (command.needsPackage) {
+      const pkg = await vscode.window.showInputBox({
+        prompt: t.inputPackageName(commandLine(project.packageManager, command.args)),
+        placeHolder: 'lodash',
+      });
+      if (!pkg) {
+        return;
+      }
+      args = args.map((a) => (a === '<pkg>' ? pkg : a));
+    }
+    try {
+      const inst = runner!.run(project, name, runnerEvents, {
+        cli: project.packageManager,
+        args,
+        display: commandLine(project.packageManager, args),
+      });
+      instances.set(instanceKey(project, name), inst);
+      provider.refresh();
+    } catch (e) {
+      void vscode.window.showErrorMessage(t.startFail(e instanceof Error ? e.message : String(e)));
+    }
+  };
+
   const runScript = async (node?: TreeNode) => {
-    if (!node || node.kind !== 'script') {
+    if (!node) {
+      return;
+    }
+    if (node.kind === 'builtin') {
+      await runBuiltin(node.project, node.command);
+      return;
+    }
+    if (node.kind !== 'script') {
       return;
     }
     await startScript(node.project, node.script);
   };
 
+  /** 树节点对应的实例名：脚本行 = 脚本名，内置命令 = builtin:<id> */
+  function nodeScriptName(node: TreeNode): string | undefined {
+    if (node.kind === 'script') {
+      return node.script;
+    }
+    return node.kind === 'builtin' ? builtinKey(node.command.id) : undefined;
+  }
+
   const stopScript = async (node?: TreeNode) => {
-    if (!node || node.kind !== 'script') {
+    if (!node) {
       return;
     }
-    const err = await runner!.stop(node.project, node.script);
+    const name = nodeScriptName(node);
+    if (name === undefined) {
+      return;
+    }
+    const err = await runner!.stop(node.project, name);
     if (err) {
       void vscode.window.showErrorMessage(t.stopFail(err));
       return;
@@ -229,10 +283,14 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   const showOutput = (node?: TreeNode) => {
-    if (!node || node.kind !== 'script') {
+    if (!node) {
       return;
     }
-    instances.get(instanceKey(node.project, node.script))?.output.show();
+    const name = nodeScriptName(node);
+    if (name === undefined) {
+      return;
+    }
+    instances.get(instanceKey(node.project, name))?.output.show();
   };
 
   /** 节点可打开的地址：脚本行 = 其全部监听端口（升序），服务 / 外部端口行 = 自身 */

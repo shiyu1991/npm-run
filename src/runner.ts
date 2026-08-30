@@ -65,15 +65,26 @@ export class ScriptRunner {
     this.channels.clear();
   }
 
-  run(project: NpmProject, script: string, events: RunnerEvents): RunningScript {
+  /**
+   * 启动命令：默认按 `npm run <script>` 执行；
+   * 传 opts 时用指定包管理器与参数执行（内置命令，如 pnpm install）。
+   */
+  run(
+    project: NpmProject,
+    script: string,
+    events: RunnerEvents,
+    opts?: { cli?: string; args?: string[]; display?: string }
+  ): RunningScript {
     const key = instanceKey(project, script);
     if (this.isRunning(project, script)) {
       throw new Error(t.alreadyRunning);
     }
 
     const output = this.getOrCreateChannel(key, project, script);
-    const npmCmd = isWin ? 'npm.cmd' : 'npm';
-    const child = spawn(npmCmd, ['run', '--silent', script], {
+    const cli = opts?.cli ?? 'npm';
+    const args = opts?.args ?? ['run', '--silent', script];
+    const shown = opts?.display ?? `npm run ${script}`;
+    const child = spawn(isWin ? `${cli}.cmd` : cli, args, {
       cwd: project.dir.fsPath,
       shell: isWin,
       windowsHide: true,
@@ -133,7 +144,7 @@ export class ScriptRunner {
     });
 
     output.appendLine(
-      t.runHeader(new Date().toLocaleTimeString(), script, instance.rootPid, project.dir.fsPath)
+      t.runHeader(new Date().toLocaleTimeString(), shown, instance.rootPid, project.dir.fsPath)
     );
     output.show(true);
     return instance;
