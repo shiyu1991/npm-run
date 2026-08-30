@@ -4,6 +4,7 @@ import { ScriptRunner, RunnerEvents, instanceKey } from './runner';
 import { ServiceMonitor } from './serviceMonitor';
 import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
 import { killProcessTree } from './killTree';
+import { toBrowseUrl } from './urlBuilder';
 import { NpmRunTreeProvider, TreeNode } from './treeProvider';
 import { NpmProject, RunningScript, ExternalState } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
@@ -234,6 +235,53 @@ export function activate(context: vscode.ExtensionContext): void {
     instances.get(instanceKey(node.project, node.script))?.output.show();
   };
 
+  /** 节点可打开的地址：脚本行 = 其全部监听端口（升序），服务 / 外部端口行 = 自身 */
+  function openTargets(node: TreeNode): { port: number; addresses: string[] }[] {
+    if (node.kind === 'service') {
+      const svc = node.instance.services.get(node.port);
+      return svc ? [{ port: svc.port, addresses: svc.addresses }] : [];
+    }
+    if (node.kind === 'external-port') {
+      const p = node.state.hit.ports.find((x) => x.port === node.port);
+      return p ? [{ port: p.port, addresses: p.addresses }] : [];
+    }
+    if (node.kind !== 'script') {
+      return [];
+    }
+    if (node.instance) {
+      return [...node.instance.services.values()]
+        .sort((a, b) => a.port - b.port)
+        .map((s) => ({ port: s.port, addresses: s.addresses }));
+    }
+    return node.external
+      ? node.external.hit.ports.map((p) => ({ port: p.port, addresses: p.addresses }))
+      : [];
+  }
+
+  /** 在浏览器打开：单端口直接打开，多端口（脚本行）先选一个 */
+  const openInBrowser = async (node?: TreeNode) => {
+    if (!node) {
+      return;
+    }
+    const targets = openTargets(node);
+    if (targets.length === 0) {
+      void vscode.window.showInformationMessage(t.noPortToOpen);
+      return;
+    }
+    let target = targets[0];
+    if (targets.length > 1) {
+      const picked = await vscode.window.showQuickPick(
+        targets.map((s) => ({ label: toBrowseUrl(s.addresses, s.port), target: s })),
+        { placeHolder: t.choosePortToOpen }
+      );
+      if (!picked) {
+        return;
+      }
+      target = picked.target;
+    }
+    await vscode.env.openExternal(vscode.Uri.parse(toBrowseUrl(target.addresses, target.port)));
+  };
+
   const killService = async (node?: TreeNode) => {
     if (!node || node.kind !== 'service') {
       return;
@@ -359,6 +407,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('npm-run.showOutput', showOutput),
     vscode.commands.registerCommand('npm-run.killService', killService),
     vscode.commands.registerCommand('npm-run.killExternal', killExternal),
+    vscode.commands.registerCommand('npm-run.openInBrowser', openInBrowser),
     vscode.commands.registerCommand('npm-run.refresh', refresh),
     scanner.watch(),
     { dispose: () => monitor.dispose() }

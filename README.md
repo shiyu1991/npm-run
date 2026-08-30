@@ -22,11 +22,11 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 
 ```
 📦 项目名（如 app-a）            3 个脚本
-├─ ⌨ dev (运行中)               vite --host   [⟳ ■ 📄]
-│  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕]
-│  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕]
-├─ ⌨ preview (外部运行中 · PID 8821)            [▶ ✕]
-│  └─ 📡 127.0.0.1:4173               PID 8835
+├─ ⌨ dev (运行中)               vite --host   [⟳ ■ 📄 ↗]
+│  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕ ↗]
+│  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕ ↗]
+├─ ⌨ preview (外部运行中 · PID 8821)            [▶ ✕ ↗]
+│  └─ 📡 127.0.0.1:4173               PID 8835      [↗]
 └─ ⌨ build                      vite build       [▶]
 ```
 
@@ -37,6 +37,7 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 3. 运行中脚本自动展开服务列表：
    - 服务行点 ⟳ **仅重启该服务**（其余服务不受影响），点 ✕ 单独结束；若脚本只有这一个服务，⟳ 会直接重启整个脚本（效果必然等价）
    - 脚本行点 ⟳ 重启整个脚本，点 ■ 停止整个脚本
+   - 点 ↗ 用默认浏览器打开监听地址（`0.0.0.0` / `[::]` 等通配地址自动转为 `localhost`）；脚本行有多个端口时先选一个
 4. 点击脚本名或 📄 按钮查看实时输出
 5. 若启动器进程退出（如 `concurrently` 场景）但仍有被单独重启过的服务在跑，脚本行显示**扩展代管**，服务继续被追踪，停止时统一清理
 6. **外部运行中**的脚本（在别的 IDE / 终端启动）：显示 ● 实心圆图标与外部 PID，展开可见其监听端口；点 ▶ 运行前会提示可能端口冲突，点 ✕ 结束外部进程树；检测结果为快照，点击该行或刷新按钮重新检测
@@ -56,6 +57,7 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 - **One-click run**: inline ▶ button per script (⟳ restarts the whole script, ■ stops it); output streams into a per-script output channel
 - **Multi-port service tracking**: automatically discovers every listening port of the script's process tree and shows them as service children — one script, multiple services, at a glance
 - **Per-service control**: each service node shows IP + port with ⟳ restart and ✕ kill buttons; restart or kill just one service (e.g. one of three started via `concurrently`) without touching the others
+- **Open in browser**: ↗ on a script or service row opens its listening address in the default browser (`0.0.0.0` / `[::]` wildcards become `localhost`); when a script listens on several ports you pick one first
 - **External script detection**: scripts started outside the extension (another IDE, a terminal) are visible too — opening the panel or clicking refresh takes a one-shot process snapshot and matches external `npm run` commands back to their project via the `node_modules` path in the process command line (npm / pnpm / yarn supported), showing "external · PID" with its listening ports and a one-click kill; detection is strictly user-triggered, no background polling
 - **Port conflict handling**: on `EADDRINUSE`, tells you whether the port is held by another of *your* scripts or an external process, and offers a confirmed one-click kill for the latter
 - **Clean exit**: kills all process trees when the window closes or the extension is deactivated — no orphan processes
@@ -64,11 +66,11 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 
 ```
 📦 project name (e.g. app-a)     3 scripts
-├─ ⌨ dev (running)              vite --host   [⟳ ■ 📄]
-│  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕]
-│  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕]
-├─ ⌨ preview (external · PID 8821)              [▶ ✕]
-│  └─ 📡 127.0.0.1:4173               PID 8835
+├─ ⌨ dev (running)              vite --host   [⟳ ■ 📄 ↗]
+│  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕ ↗]
+│  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕ ↗]
+├─ ⌨ preview (external · PID 8821)              [▶ ✕ ↗]
+│  └─ 📡 127.0.0.1:4173               PID 8835      [↗]
 └─ ⌨ build                      vite build       [▶]
 ```
 
@@ -79,6 +81,7 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 3. A running script auto-expands its services:
    - ⟳ on a service row restarts **only that service** (others unaffected), ✕ kills just that one; if the script has a single service, ⟳ restarts the whole script directly (always equivalent)
    - ⟳ on the script row restarts the whole script, ■ stops it
+   - ↗ opens the listening address in your default browser (`0.0.0.0` / `[::]` wildcards become `localhost`); if the script listens on several ports you pick one first
 4. Click the script name or the 📄 button to view live output
 5. If the launcher process exits (e.g. `concurrently`) while separately-restarted services keep running, the script row shows an **adopted** state; services stay tracked and are cleaned up together on stop
 6. **Externally started** scripts (from another IDE / terminal): shown with a ● filled-circle icon and the external PID, expandable to their listening ports; ▶ warns about possible port conflicts before running, ✕ kills the external process tree; results are snapshot-based — click the row or the refresh button to re-detect

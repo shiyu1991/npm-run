@@ -22,6 +22,11 @@ const zhDict = {
   serviceTooltipRoot: '\n\n该服务由脚本主进程监听\n点击 ⟳ 重启整个脚本',
   serviceTooltipChild: '\n点击 ⟳ 仅重启此服务\n点击 ✕ 结束此服务',
 
+  // ── 浏览器打开 ──
+  openInBrowser: '在浏览器打开',
+  noPortToOpen: '该脚本当前未检测到监听端口，无法打开',
+  choosePortToOpen: '选择要打开的地址',
+
   // ── 外部运行检测（手动刷新快照） ──
   externalRunning: (pid: number) => `外部运行中 · PID ${pid}`,
   externalTooltip: (cmdline: string | undefined, time: string) =>
@@ -102,6 +107,11 @@ const enDict: typeof zhDict = {
     `Port ${port}\nAddresses ${addrs}\nProcess PID ${pid}`,
   serviceTooltipRoot: '\n\nListened by the script main process\nClick ⟳ to restart the whole script',
   serviceTooltipChild: '\nClick ⟳ to restart only this service\nClick ✕ to kill this service',
+
+  // ── Open in browser ──
+  openInBrowser: 'Open in Browser',
+  noPortToOpen: 'No listening port detected for this script yet',
+  choosePortToOpen: 'Select an address to open',
 
   // ── External run detection (manual refresh snapshot) ──
   externalRunning: (pid: number) => `external · PID ${pid}`,

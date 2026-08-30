@@ -100,6 +100,12 @@
         "category": "npm-run"
       },
       {
+        "command": "npm-run.openInBrowser",
+        "title": "%cmd.openInBrowser.title%",
+        "icon": "$(link-external)",
+        "category": "npm-run"
+      },
+      {
         "command": "npm-run.refresh",
         "title": "%cmd.refresh.title%",
         "icon": "$(refresh)",
@@ -158,6 +164,31 @@
         {
           "command": "npm-run.restartScript",
           "when": "view == npm-run.scripts && viewItem == service-root",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == script-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == script-external",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == service",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == service-root",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == external-port",
           "group": "inline"
         }
       ]
