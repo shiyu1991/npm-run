@@ -1,12 +1,14 @@
 # Changelog / 更新日志
 
 
-## 0.7.4 / 2026-08-30
+## 0.8.1 / 2026-08-30
 
 - New: ↗ on script and service rows opens the listening address in your default browser (`0.0.0.0` / `[::]` wildcards become `localhost`); if a script listens on several ports you pick one first
 - New: a collapsible "Common Commands" group per project — install / ci / update / remove / prune / outdated, one click to run; the package manager is detected from the lockfile (npm / pnpm / yarn) so a pnpm project never runs `npm install`, and `remove` asks for the package name first
+- Fixed: the "taskkill failed" message was hardcoded in Chinese and appeared for English users too
 - 新增：脚本行与服务行的 ↗ 按钮可在默认浏览器打开监听地址（`0.0.0.0` / `[::]` 等通配地址自动转为 `localhost`）；脚本有多个端口时先选择再打开
 - 新增：每个项目下新增默认折叠的「常用命令」分组——install / ci / update / remove / prune / outdated，一键运行；包管理器按 lockfile 自动识别（npm / pnpm / yarn），pnpm 项目不会误跑 `npm install`，remove 会先让你输入包名
+- 修复：结束进程失败的提示（`taskkill 失败`）此前是硬编码中文，英文环境下也会显示中文
 
 ## 0.7.3 / 2026-08-26
 
