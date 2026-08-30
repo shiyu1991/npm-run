@@ -23,14 +23,20 @@
 - 0.7.2.vsix（49.83KB，13 文件）已装 CodeBuddy；**已发布双市场（2026-08-26）：Marketplace DONE、Open VSX latest=0.7.2 均验证通过；git 由用户自行提交推送（203e907）**
 - 诊断经验：Win32_Process 是唯一真相源；esbuild CLI 参数在外层 PowerShell 易出问题，用 esbuild JS API 写 .cjs 脚本打包临时模块最稳
 
+## 0.7.4 未发版改动（2026-08-30 完成，版本号/CHANGELOG 未动）
+- 树视图「在浏览器打开」：新命令 `npm-run.openInBrowser`（$(link-external)），inline 图标覆盖 script-running / script-external / service / service-root / external-port（单条正则 when）
+- `src/urlBuilder.ts` → `toBrowseUrl(addresses, port)`：通配/回环地址 → localhost，网卡 IP 原样，IPv6 补方括号，443 用 https 其余 http
+- 脚本行多端口时 QuickPick 选一个再打开；服务行直接打开该地址
+
 ## 历史要点（详见 git log / CHANGELOG）
 - 0.6.x：i18n 双语（代码走 src/i18n.ts 按 vscode.env.language；清单走 package.nls.*.json）+ manifest 本地化；已发布 VSCode Marketplace 与 Open VSX
 - 0.5.x：firstPortAnnounced 消除 Next.js Starting→Ready 静默误判；单服务重启 verifyRespawn；单服务脚本重启恒等整脚本重启
 - Next.js dev 的端口监听者 start-server.js 是 worker 模式（依赖父 IPC），裸拉起即退出——单服务重启对 Next.js 无效属框架行为
 
 ## 环境事实（跨会话有用）
-- CodeBuddy CN 的扩展实际装在 C:\Users\HeShiyu\.codebuddycn\extensions\（不是 .codebuddy）
-- CodeBuddy CLI：C:\Users\HeShiyu\AppData\Local\Programs\CodeBuddy CN\bin\buddycn.cmd（不在 PATH）；装完 VSIX 必须重载窗口
+- CodeBuddy CN 的扩展装在 <用户目录>\.codebuddycn\extensions\（不是 .codebuddy）；当前机器用户目录是 C:\Users\Administrator（旧记录写的 HeShiyu 已不适用，以实际 %USERPROFILE% 为准）
+- CodeBuddy CLI：<用户目录>\AppData\Local\Programs\CodeBuddy CN\bin\buddycn.cmd（不在 PATH，需带引号用 & 调用）；装完 VSIX 必须重载窗口
+- 本地安装：`& "<cli路径>" --install-extension "<vsix绝对路径>" --force`；验证安装结果读 <用户目录>\.codebuddycn\extensions\npm-run-dev.npm-run-manager-<ver>\package.json（workspace 外，用 node 读）
 - PowerShell 会吞 $ 和 $_，复杂命令写 .ps1 再 -File；不支持 cd /d 与 head
 - nls 语言解析只看编辑器显示语言；Open VSX 验证用 /api/<ns>/<ext>/<version> 端点
 - .vscodeignore 会覆盖 vsce 默认排除规则，需显式列 src/**、out-test/** 等
