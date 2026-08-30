@@ -23,10 +23,14 @@
 - 0.7.2.vsix（49.83KB，13 文件）已装 CodeBuddy；**已发布双市场（2026-08-26）：Marketplace DONE、Open VSX latest=0.7.2 均验证通过；git 由用户自行提交推送（203e907）**
 - 诊断经验：Win32_Process 是唯一真相源；esbuild CLI 参数在外层 PowerShell 易出问题，用 esbuild JS API 写 .cjs 脚本打包临时模块最稳
 
-## 0.7.4 未发版改动（2026-08-30 完成，版本号/CHANGELOG 未动）
-- 树视图「在浏览器打开」：新命令 `npm-run.openInBrowser`（$(link-external)），inline 图标覆盖 script-running / script-external / service / service-root / external-port（单条正则 when）
+## 0.7.4（2026-08-30 完成，版本号与 CHANGELOG 已写，未发市场）
+- 树视图「在浏览器打开」：命令 npm-run.openInBrowser（link-external 图标），inline 覆盖 script-running / script-external / service / service-root / external-port（显式 5 条 when，不用正则）
 - `src/urlBuilder.ts` → `toBrowseUrl(addresses, port)`：通配/回环地址 → localhost，网卡 IP 原样，IPv6 补方括号，443 用 https 其余 http
-- 脚本行多端口时 QuickPick 选一个再打开；服务行直接打开该地址
+- 项目下「常用命令」分组（默认折叠）：`src/builtins.ts` 按包管理器生成 install / ci / update / remove / prune / outdated；remove 弹输入框要包名
+- 包管理器按 lockfile 识别（pnpm-lock.yaml / yarn.lock / package-lock.json）→ `NpmProject.packageManager`；yarn 无 prune 等价物故不显示该条
+- 内置命令实例 key 用 `builtin:<id>` 前缀：package.json 允许 install 等生命周期脚本，共用 key 会让 `npm run install` 与 `npm install` 状态串台
+- `runner.run` 新增第 4 参 `opts{cli,args,display}`；i18n `runHeader` 改为接受完整命令串（不再硬编码 "npm run"）
+- 内置命令不接入 ServiceMonitor（不监听端口，接入只会空转轮询）；停止与清理复用同一套 instances / stopAll
 
 ## 历史要点（详见 git log / CHANGELOG）
 - 0.6.x：i18n 双语（代码走 src/i18n.ts 按 vscode.env.language；清单走 package.nls.*.json）+ manifest 本地化；已发布 VSCode Marketplace 与 Open VSX
