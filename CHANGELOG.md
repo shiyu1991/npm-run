@@ -1,5 +1,10 @@
 # Changelog / 更新日志
 
+## 0.8.4 / 2026-08-31
+
+- New: services that depend on the script main process (e.g. the Next.js dev `start-server` worker) no longer offer a restart button that would only kill the running service — their ⟳ is replaced by a disabled icon (click or hover for an explanation pointing to the whole-script restart). Identified by a built-in worker-signature list (Next.js first) plus in-session learning: a respawn whose new process exits immediately is remembered, so the same trap never fires twice
+- 新增：依赖脚本主进程的服务（如 Next.js dev 的 `start-server` worker）不再提供注定失败的单独重启按钮，⟳ 置换为禁用图标（点击/悬停提示改用整脚本重启）——内置 worker 特征表（首批 Next.js）+ 会话内失败学习（新进程立即退出的重启会被记住）双重识别，同一个坑不会踩第二次
+
 ## 0.8.3 / 2026-08-31
 
 - New: the project row now shows a green dot and a `running (n)` count (each running script counted by its listening services, minimum 1, external runs included), so a collapsed project no longer hides what is still running inside

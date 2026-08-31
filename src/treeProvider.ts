@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { NpmProject, RunningScript, ExternalState } from './types';
 import { BuiltinCommand, builtinCommands, builtinKey, commandLine } from './builtins';
 import { t } from './i18n';
+import { isDependentWorker } from './respawnGuard';
 
 export type TreeNode =
   | { kind: 'project'; project: NpmProject }
@@ -28,7 +29,9 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     private readonly instances: Map<string, RunningScript>,
     private readonly keyOf: (project: NpmProject, script: string) => string,
     /** 外部运行检测结果（key 与 instances 同构）；保持单实例引用，refresh 时 clear+set */
-    private readonly externalRunning: Map<string, ExternalState>
+    private readonly externalRunning: Map<string, ExternalState>,
+    /** 已学习"无法单独重启"的 cmdline（来自 runner 的 respawn 失败回写，会话级） */
+    private readonly noRespawnCmdlines: ReadonlySet<string>
   ) {}
 
   refresh(): void {
@@ -137,11 +140,21 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       const label = svc ? svc.addresses.map((a) => `${a}:${svc.port}`).join(' · ') : String(node.port);
       const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
       item.iconPath = new vscode.ThemeIcon('radio-tower');
-      item.contextValue = svc?.isRoot ? 'service-root' : 'service';
+      // 依赖主进程的 worker（特征表命中或失败学习过）：单独重启必败，⟳ 置换为禁用图标
+      const noRespawn = !!svc && !svc.isRoot && !!svc.cmdline && this.isNoRespawn(svc.cmdline);
+      item.contextValue = svc?.isRoot
+        ? 'service-root'
+        : noRespawn
+          ? 'service-norespawn'
+          : 'service';
       item.description = svc ? `PID ${svc.pid}` : undefined;
       item.tooltip = svc
         ? t.serviceTooltip(svc.port, svc.addresses.join(', '), svc.pid) +
-          (svc.isRoot ? t.serviceTooltipRoot : t.serviceTooltipChild)
+          (svc.isRoot
+            ? t.serviceTooltipRoot
+            : noRespawn
+              ? t.serviceTooltipNoRespawn
+              : t.serviceTooltipChild)
         : undefined;
       return item;
     }
@@ -213,6 +226,11 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       return [];
     }
     return [];
+  }
+
+  /** cmdline 是否已知/已学习为"依赖主进程、无法单独重启" */
+  private isNoRespawn(cmdline: string): boolean {
+    return this.noRespawnCmdlines.has(cmdline) || isDependentWorker(cmdline);
   }
 
   /**

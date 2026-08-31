@@ -236,9 +236,15 @@ export class ScriptRunner {
       // 脚本根已退出且这是最后一个代管进程 → 实例真正终结
       this.finalizeIfGone(inst);
     });
-    this.verifyRespawn(inst, svc.port, child);
+    this.verifyRespawn(inst, svc.port, child, svc.cmdline);
     return '';
   }
+
+  /**
+   * 已确认无法单独重启的 cmdline（respawn 后新进程立即退出 = 结构性依赖父进程）。
+   * 会话级跨实例生效：服务随整脚本重启再现时，树中直接禁用其单独重启按钮。
+   */
+  readonly noRespawnCmdlines = new Set<string>();
 
   /**
    * 单服务重启后验证：目标端口应在数秒内由新拉起的进程（或其子进程）恢复监听。
@@ -246,13 +252,23 @@ export class ScriptRunner {
    * （依赖父进程 IPC/环境，裸拉起立即退出）——明确提示改用整脚本重启，
    * 避免用户误以为服务已恢复。
    */
-  private verifyRespawn(inst: RunningScript, port: number, child: ChildProcess): void {
+  private verifyRespawn(
+    inst: RunningScript,
+    port: number,
+    child: ChildProcess,
+    cmdline: string
+  ): void {
     let settled = false;
-    const fail = (reason: string) => {
+    const fail = (reason: string, exited = false) => {
       if (settled) {
         return;
       }
       settled = true;
+      if (exited) {
+        // 新进程立即退出 = 结构性依赖父进程：记住该 cmdline，
+        // 此后此类服务的 ⟳ 在树中显示为禁用图标（无需事件刷新，下次渲染自然生效）
+        this.noRespawnCmdlines.add(cmdline);
+      }
       inst.output.appendLine(`[npm-run] ${t.verifyFailMsg(port, reason)}`);
       void vscode.window.showWarningMessage(t.verifyFailQuick(port));
     };
@@ -261,7 +277,7 @@ export class ScriptRunner {
       while (Date.now() < deadline && !settled) {
         await new Promise((r) => setTimeout(r, 1000));
         if (child.exitCode !== null) {
-          fail(t.verifyFailNewExited);
+          fail(t.verifyFailNewExited, true);
           return;
         }
         try {

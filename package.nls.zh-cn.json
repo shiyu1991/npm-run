@@ -7,6 +7,7 @@
   "cmd.stopScript.title": "停止脚本",
   "cmd.restartScript.title": "重启脚本",
   "cmd.restartService.title": "重启此服务",
+  "cmd.respawnUnsupported.title": "无法单独重启（请用脚本行 ⟳）",
   "cmd.showOutput.title": "查看输出",
   "cmd.killService.title": "结束此服务",
   "cmd.killExternal.title": "结束外部进程",

@@ -5,6 +5,7 @@ import { ServiceMonitor } from './serviceMonitor';
 import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
 import { killProcessTree } from './killTree';
 import { toBrowseUrl } from './urlBuilder';
+import { isDependentWorker } from './respawnGuard';
 import { BuiltinCommand, builtinKey, commandLine } from './builtins';
 import { NpmRunTreeProvider, TreeNode } from './treeProvider';
 import { NpmProject, RunningScript, ExternalState } from './types';
@@ -26,7 +27,13 @@ export function activate(context: vscode.ExtensionContext): void {
   /** 外部运行检测结果（key 与 instances 同构）：手动刷新快照式更新 */
   const externalRunning = new Map<string, ExternalState>();
 
-  const provider = new NpmRunTreeProvider(scanner, instances, instanceKey, externalRunning);
+  const provider = new NpmRunTreeProvider(
+    scanner,
+    instances,
+    instanceKey,
+    externalRunning,
+    runner.noRespawnCmdlines
+  );
   const treeView = vscode.window.createTreeView('npm-run.scripts', {
     treeDataProvider: provider,
     showCollapseAll: true,
@@ -258,6 +265,14 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!svc || svc.isRoot) {
       return; // 根进程服务走 restartScript（菜单已分流）
     }
+    // 双保险：命令面板等入口绕过菜单 when，命中"无法单独重启"时拦下并提示
+    if (
+      svc.cmdline &&
+      (runner!.noRespawnCmdlines.has(svc.cmdline) || isDependentWorker(svc.cmdline))
+    ) {
+      void vscode.window.showWarningMessage(t.respawnUnsupported(svc.port));
+      return;
+    }
     // 实例仅此一个服务：单服务重启在效果上必然等于整脚本重启
     //（杀掉唯一服务会导致 launcher 类脚本整体退出，如 Next.js dev 的
     // start-server worker 死后主进程随之退出），直接转发整脚本重启一步到位
@@ -284,6 +299,13 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     } finally {
       restartingServices.delete(guard);
+    }
+  };
+
+  /** 哑命令：不可单独重启的服务行点击禁用图标 → 提示改用整脚本重启 */
+  const respawnUnsupported = (node?: TreeNode) => {
+    if (node && node.kind === 'service') {
+      void vscode.window.showWarningMessage(t.respawnUnsupported(node.port));
     }
   };
 
@@ -467,6 +489,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('npm-run.stopScript', stopScript),
     vscode.commands.registerCommand('npm-run.restartScript', restartScript),
     vscode.commands.registerCommand('npm-run.restartService', restartService),
+    vscode.commands.registerCommand('npm-run.respawnUnsupported', respawnUnsupported),
     vscode.commands.registerCommand('npm-run.showOutput', showOutput),
     vscode.commands.registerCommand('npm-run.killService', killService),
     vscode.commands.registerCommand('npm-run.killExternal', killExternal),

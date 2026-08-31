@@ -22,6 +22,10 @@ const zhDict = {
     `端口 ${port}\n地址 ${addrs}\n进程 PID ${pid}`,
   serviceTooltipRoot: '\n\n该服务由脚本主进程监听\n点击 ⟳ 重启整个脚本',
   serviceTooltipChild: '\n点击 ⟳ 仅重启此服务\n点击 ✕ 结束此服务',
+  serviceTooltipNoRespawn:
+    '\n\n此服务依赖脚本主进程，无法单独重启\n请使用脚本行的 ⟳ 重启整个脚本',
+  respawnUnsupported: (port: number) =>
+    `服务 :${port} 依赖脚本主进程，无法单独重启，请重启整个脚本（脚本行 ⟳）`,
 
   // ── 内置命令 ──
   builtinGroup: '常用命令',
@@ -117,6 +121,10 @@ const enDict: typeof zhDict = {
     `Port ${port}\nAddresses ${addrs}\nProcess PID ${pid}`,
   serviceTooltipRoot: '\n\nListened by the script main process\nClick ⟳ to restart the whole script',
   serviceTooltipChild: '\nClick ⟳ to restart only this service\nClick ✕ to kill this service',
+  serviceTooltipNoRespawn:
+    '\n\nThis service depends on the script main process and cannot restart alone\nUse ⟳ on the script row to restart the whole script',
+  respawnUnsupported: (port: number) =>
+    `Service :${port} depends on the script main process and cannot restart alone — please restart the whole script (⟳ on the script row)`,
 
   // ── Built-in commands ──
   builtinGroup: 'Common Commands',

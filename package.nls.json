@@ -7,6 +7,7 @@
   "cmd.stopScript.title": "Stop Script",
   "cmd.restartScript.title": "Restart Script",
   "cmd.restartService.title": "Restart This Service",
+  "cmd.respawnUnsupported.title": "Cannot Restart Alone (Use Script ⟳)",
   "cmd.showOutput.title": "Show Output",
   "cmd.killService.title": "Kill This Service",
   "cmd.killExternal.title": "Kill External Process",

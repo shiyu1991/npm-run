@@ -2,7 +2,7 @@
   "name": "npm-run-manager",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -79,6 +79,12 @@
         "command": "npm-run.restartService",
         "title": "%cmd.restartService.title%",
         "icon": "$(debug-restart)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.respawnUnsupported",
+        "title": "%cmd.respawnUnsupported.title%",
+        "icon": "$(circle-slash)",
         "category": "npm-run"
       },
       {
@@ -169,6 +175,11 @@
         {
           "command": "npm-run.restartService",
           "when": "view == npm-run.scripts && viewItem == service",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.respawnUnsupported",
+          "when": "view == npm-run.scripts && viewItem == service-norespawn",
           "group": "inline"
         },
         {
