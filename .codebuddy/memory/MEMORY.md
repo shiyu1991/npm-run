@@ -1,7 +1,7 @@
 # npm-run 项目记忆
 
 ## 项目定位
-- d:\workspace\npm-run 是 VSCode 扩展 "npm-run Manager"（package.json name: npm-run-manager，当前 0.8.5；0.8.4 已发布，**0.8.5 是其补丁**——norespawn 行恢复 ↗、✕ 定案不提供，已装待实测/待发布，详见当日日志）
+- d:\workspace\npm-run 是 VSCode 扩展 "npm-run Manager"（package.json name: npm-run-manager，当前 0.8.5；**0.8.5 已发布双市场并验证**，2026-08-31 当日 0.8.3/0.8.4/0.8.5 三版本闭环）
 - 功能：扫描工作区 npm 项目、一键运行脚本、按端口追踪/结束服务、外部脚本运行检测（手动刷新）、常用命令、在浏览器打开、项目行运行中聚合标识（🟢 运行中 (n)）
 - 构建：esbuild（node esbuild.js），测试：mocha（out-test），仅 Windows 集成测试在 test/integration.test.ts
 - fixtures/app-a 起两个静态 server（45731/45732）；app-b 固定端口 45800
