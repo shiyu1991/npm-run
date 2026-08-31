@@ -2,7 +2,7 @@
   "name": "npm-run-manager",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -179,6 +179,11 @@
         },
         {
           "command": "npm-run.respawnUnsupported",
+          "when": "view == npm-run.scripts && viewItem == service-norespawn",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
           "when": "view == npm-run.scripts && viewItem == service-norespawn",
           "group": "inline"
         },

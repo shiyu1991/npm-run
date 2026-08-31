@@ -379,6 +379,15 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.window.showWarningMessage(t.killRootService);
       return;
     }
+    // 双保险：依赖主进程的 worker 单独结束会导致整个脚本退出且无法恢复，
+    // 与单独重启同规则拦截（菜单 when 已隐藏 ✕，此处挡命令面板等入口）
+    if (
+      svc.cmdline &&
+      (runner!.noRespawnCmdlines.has(svc.cmdline) || isDependentWorker(svc.cmdline))
+    ) {
+      void vscode.window.showWarningMessage(t.killUnsupported(svc.port));
+      return;
+    }
     const err = await killProcessTree(svc.pid);
     if (err) {
       void vscode.window.showErrorMessage(t.killServiceFail(err));

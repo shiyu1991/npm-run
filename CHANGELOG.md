@@ -1,5 +1,12 @@
 # Changelog / 更新日志
 
+## 0.8.5 / 2026-08-31
+
+- Fixed: the ↗ open-in-browser button was accidentally missing on rows showing the disabled-restart icon (0.8.4 changed the row identity and the button's rule no longer matched) — opening a URL has nothing to do with process control and is always available while the service is listening
+- Changed: rows with the disabled-restart icon no longer offer the per-service ✕ kill either — killing a worker that depends on the script main process takes the whole script down (and cannot be revived alone), so stop via ■ on the script row; the tooltip now explains restart, stop and the reason in one place
+- 修复：显示禁用重启图标的服务行上 ↗「在浏览器打开」按钮意外消失（0.8.4 更改了该行的识别标识，按钮规则不再匹配）——打开浏览器与进程管理无关，服务在监听就应可用
+- 调整：禁用重启图标的服务行同样不再提供单独 ✕ 结束——依赖主进程的 worker 被单独结束后整个脚本会随之退出且无法单独恢复，停止请用脚本行的 ■；tooltip 一并说明重启、停止入口与原因
+
 ## 0.8.4 / 2026-08-31
 
 - New: services that depend on the script main process (e.g. the Next.js dev `start-server` worker) no longer offer a restart button that would only kill the running service — their ⟳ is replaced by a disabled icon (click or hover for an explanation pointing to the whole-script restart). Identified by a built-in worker-signature list (Next.js first) plus in-session learning: a respawn whose new process exits immediately is remembered, so the same trap never fires twice

@@ -23,9 +23,11 @@ const zhDict = {
   serviceTooltipRoot: '\n\n该服务由脚本主进程监听\n点击 ⟳ 重启整个脚本',
   serviceTooltipChild: '\n点击 ⟳ 仅重启此服务\n点击 ✕ 结束此服务',
   serviceTooltipNoRespawn:
-    '\n\n此服务依赖脚本主进程，无法单独重启\n请使用脚本行的 ⟳ 重启整个脚本',
+    '\n\n此服务依赖脚本主进程，无法单独重启或单独结束（单独结束会导致整个脚本退出）\n重启请用脚本行的 ⟳，停止请用脚本行的 ■',
   respawnUnsupported: (port: number) =>
     `服务 :${port} 依赖脚本主进程，无法单独重启，请重启整个脚本（脚本行 ⟳）`,
+  killUnsupported: (port: number) =>
+    `服务 :${port} 依赖脚本主进程，单独结束会导致整个脚本退出且无法单独恢复；如需停止请用脚本行的 ■`,
 
   // ── 内置命令 ──
   builtinGroup: '常用命令',
@@ -122,9 +124,11 @@ const enDict: typeof zhDict = {
   serviceTooltipRoot: '\n\nListened by the script main process\nClick ⟳ to restart the whole script',
   serviceTooltipChild: '\nClick ⟳ to restart only this service\nClick ✕ to kill this service',
   serviceTooltipNoRespawn:
-    '\n\nThis service depends on the script main process and cannot restart alone\nUse ⟳ on the script row to restart the whole script',
+    '\n\nThis service depends on the script main process; it can neither restart nor be killed alone (killing it takes down the whole script)\nUse ⟳ to restart or ■ to stop via the script row',
   respawnUnsupported: (port: number) =>
     `Service :${port} depends on the script main process and cannot restart alone — please restart the whole script (⟳ on the script row)`,
+  killUnsupported: (port: number) =>
+    `Service :${port} depends on the script main process; killing it alone takes down the whole script and cannot be revived alone — use ■ on the script row to stop`,
 
   // ── Built-in commands ──
   builtinGroup: 'Common Commands',
