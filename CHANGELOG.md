@@ -1,5 +1,13 @@
 # Changelog / 更新日志
 
+## 0.8.2 / 2026-08-31
+
+- Fixed: scripts can now launch your editor (or any Electron app) again — the extension host runs with `ELECTRON_RUN_AS_NODE=1`, which leaked into every spawned script; tools such as code-inspector-plugin's launch-ide then started the editor binary in plain Node mode where `-g` is rejected with exit code 9 (integrated terminals never have this variable, which is why a terminal run worked fine). The variable is now stripped from spawned environments
+- New: `npm-run.env` setting — custom environment variables injected into every script process started by the extension, for opt-in tools that read flags directly from the process environment; project-level switches like `CODE_INSPECTOR` are usually better kept in `.env.local` (Next.js loads it before evaluating next.config), so with the fix above most projects need no configuration here at all
+- Improved: spawned processes also carry the editor-identity env vars the integrated terminal gets (`TERM_PROGRAM`, `VSCODE_PID`, `VSCODE_CWD`), so tools that detect the editor through these signals (react-dev-utils' launchEditor etc.) behave the same as a terminal run
+- 修复：脚本重新可以唤起编辑器（或任意 Electron 应用）——扩展宿主自身以 `ELECTRON_RUN_AS_NODE=1` 运行，该变量曾遗传给所有 spawn 的脚本；code-inspector-plugin 的 launch-ide 等工具因此把编辑器 exe 以纯 Node 模式拉起，`-g` 被拒、退出码 9（集成终端没有这个变量，所以终端里跑一直正常）。现已从脚本环境中剥离该变量
+- 新增：`npm-run.env` 配置——注入到扩展启动的每个脚本进程的自定义环境变量，适用于直接从进程环境读取开关的工具；项目级开关（如 `CODE_INSPECTOR`）通常放 `.env.local` 更合适（Next.js 求值 next.config 前会自动加载），配合上述修复，多数项目零配置即可用
+- 优化：启动的进程同时带上与集成终端一致的编辑器标识环境变量（`TERM_PROGRAM` / `VSCODE_PID` / `VSCODE_CWD`），依赖这些信号识别宿主编辑器的工具（react-dev-utils 的 launchEditor 等）与终端启动行为一致
 
 ## 0.8.1 / 2026-08-30
 

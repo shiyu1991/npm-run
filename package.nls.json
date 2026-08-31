@@ -13,5 +13,6 @@
   "cmd.openInBrowser.title": "Open in Browser",
   "cmd.refresh.title": "Refresh Project List",
   "config.exclude.description": "Glob patterns excluded when scanning for package.json",
-  "config.pollIntervalMs.description": "Port/process poll interval for running scripts (ms)"
+  "config.pollIntervalMs.description": "Port/process poll interval for running scripts (ms)",
+  "config.env.description": "Environment variables injected into every script process started by the extension, e.g. { \"CODE_INSPECTOR\": \"1\" } — handy for opt-in dev tools that read env flags (code-inspector-plugin etc.)"
 }

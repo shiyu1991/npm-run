@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { NpmProject, RunningScript, ServiceInfo } from './types';
 import { extractConflictPort } from './errorParse';
 import { killProcessTree } from './killTree';
+import { spawnEnv } from './editorEnv';
 import { snapshotPorts, snapshotProcesses } from './sysSnapshot';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
 import { t } from './i18n';
@@ -24,6 +25,8 @@ export function instanceKey(project: NpmProject, script: string): string {
 
 /** 脚本运行器：spawn 托管进程、输出管道、EADDRINUSE 行检测 */
 export class ScriptRunner {
+  /** 用户配置 npm-run.env 的读取器（每次 spawn 时读，改配置无需重启脚本之外的任何东西） */
+  constructor(private extraEnv?: () => Record<string, unknown>) {}
   private children = new Map<string, ChildProcess>();
   /** 按 key 复用 OutputChannel，避免同一脚本多次运行堆积 channel 泄漏 */
   private channels = new Map<string, vscode.OutputChannel>();
@@ -88,7 +91,10 @@ export class ScriptRunner {
       cwd: project.dir.fsPath,
       shell: isWin,
       windowsHide: true,
-      env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' },
+      env: spawnEnv(this.extraEnv?.() ?? {}, {
+        pid: process.ppid,
+        cwd: project.dir.fsPath,
+      }),
     });
 
     const instance: RunningScript = {
@@ -209,7 +215,10 @@ export class ScriptRunner {
       cwd: inst.project.dir.fsPath,
       shell: true,
       windowsHide: true,
-      env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' },
+      env: spawnEnv(this.extraEnv?.() ?? {}, {
+        pid: process.ppid,
+        cwd: inst.project.dir.fsPath,
+      }),
     });
     if (child.pid === undefined) {
       return t.respawnFailNoPid(svc.port);

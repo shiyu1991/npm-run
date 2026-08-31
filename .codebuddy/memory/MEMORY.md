@@ -1,10 +1,24 @@
 # npm-run 项目记忆
 
 ## 项目定位
-- d:\workspace\npm-run 是 VSCode 扩展 "npm-run Manager"（package.json name: npm-run-manager，当前已发布 0.7.2）
-- 功能：扫描工作区 npm 项目、一键运行脚本、按端口追踪/结束服务、外部脚本运行检测（手动刷新）
+- d:\workspace\npm-run 是 VSCode 扩展 "npm-run Manager"（package.json name: npm-run-manager，当前 0.8.2；已发布至 0.8.1，0.8.2 待发）
+- 功能：扫描工作区 npm 项目、一键运行脚本、按端口追踪/结束服务、外部脚本运行检测（手动刷新）、常用命令、在浏览器打开
 - 构建：esbuild（node esbuild.js），测试：mocha（out-test），仅 Windows 集成测试在 test/integration.test.ts
 - fixtures/app-a 起两个静态 server（45731/45732）；app-b 固定端口 45800
+
+## 0.8.2 脚本进程环境三件套（2026-08-31，用户已实测通过，待发市场）
+- 起因：用户 core 项目（z-vlm-forge）经面板跑 dev:webpack + code-inspector-plugin，点击页面元素无法跳源码；hover"运行脚本"（集成终端）正常
+- **终极根因：ELECTRON_RUN_AS_NODE=1**——VSCode 系扩展宿主自身以纯 Node 模式运行，该变量遗传给 spawn 的脚本进程；launch-ide 再启动编辑器 exe（同 Electron 二进制）被拉成纯 Node 模式，`-g` 被拒 exit 9（Node 非法选项退出码=9，stderr "bad option: -g"）。集成终端由主进程（GUI 模式）派生无此变量故正常。**修复：spawnEnv() 里 delete env.ELECTRON_RUN_AS_NODE**
+- **新增配置 npm-run.env**（object）：注入到所有 spawn（run/respawnService）的用户环境变量，spawn 时一次性读取（改配置必须 ⟳ 重启脚本）；合并优先级 process.env < 编辑器标识 < 用户 env（String 归一，undefined/null 跳过）。用户场景配 `{"CODE_INSPECTOR":"1","CODE_EDITOR":"<CodeBuddy CN.exe 全路径>"}`
+- src/editorEnv.ts：withEditorHints（补 TERM_PROGRAM/VSCODE_PID/VSCODE_CWD，已有不覆盖——launch-ide 不看这些，属 react-dev-utils 类工具的兼容增强）+ spawnEnv（完整环境组装）。ScriptRunner 构造注入 () => 配置读取器
+- 测试 test/editorEnv.test.ts 9 用例；全量 87 pass；VSIX 90.24KB
+
+## launch-ide / code-inspector-plugin 机制（排查所得，跨项目有用）
+- launch-ide（@code-inspector/core 依赖）编辑器识别优先级：**CODE_EDITOR env/.env.local（唯一支持完整 exe 路径的入口，`F(路径)=null → 直接采用`）> 插件 editor 配置（只认系列名 idea/code/codebuddy…，传路径会被忽略落回扫描）> usePid 父进程链（core 未启用）> Get-CimInstance 全量进程扫描（固定顺序 kiro→…→codebuddy→code→…，找 basename 精确匹配的运行进程，返回完整路径）> VISUAL/EDITOR**
+- editor:'idea' 语义 = "优先返回运行中的 idea*.exe"，没运行则退回扫描顺序第一个命中（本机常是 CodeBuddy CN.exe）
+- Next.js 在求值 next.config 前加载 .env.local → config 里 process.env.CODE_INSPECTOR 能读到 .env.local 的值（无需终端手动设）；launch-ide 的 Z() 读 .env.local 时 process.env 优先
+- 诊断手法：patch 第三方包 dist（备份→锚点替换→本地验证→现场抓 [LI-DBG] 日志→恢复）；execute_command 的 shell ≈ 扩展宿主同源环境，但**无 ELECTRON_RUN_AS_NODE**（工具进程非 EH 直接派生），复现"扩展 spawn 环境"问题时注意这点差异
+- PowerShell Test-Path 中文路径可能乱码误报文件不存在——用 node fs 或看 Next 启动日志（Environments 行）确认
 
 ## 0.7.x 外部脚本检测（方案B：手动刷新快照，已装 2026-08-26）
 - 需求：用户在别的 IDE/终端 npm run dev，本扩展刷新后树视图显示"外部运行中"
@@ -38,7 +52,7 @@
 - Next.js dev 的端口监听者 start-server.js 是 worker 模式（依赖父 IPC），裸拉起即退出——单服务重启对 Next.js 无效属框架行为
 
 ## 环境事实（跨会话有用）
-- CodeBuddy CN 的扩展装在 <用户目录>\.codebuddycn\extensions\（不是 .codebuddy）；当前机器用户目录是 C:\Users\Administrator（旧记录写的 HeShiyu 已不适用，以实际 %USERPROFILE% 为准）
+- CodeBuddy CN 的扩展装在 <用户目录>\.codebuddycn\extensions\（不是 .codebuddy）；**本仓库记忆多台机器共用（一台 Administrator、一台 HeShiyu），机器相关路径以当前 %USERPROFILE% 为准，勿盲信旧记录**
 - CodeBuddy CLI：<用户目录>\AppData\Local\Programs\CodeBuddy CN\bin\buddycn.cmd（不在 PATH，需带引号用 & 调用）；装完 VSIX 必须重载窗口
 - 本地安装：`& "<cli路径>" --install-extension "<vsix绝对路径>" --force`；验证安装结果读 <用户目录>\.codebuddycn\extensions\npm-run-dev.npm-run-manager-<ver>\package.json（workspace 外，用 node 读）
 - PowerShell 会吞 $ 和 $_，复杂命令写 .ps1 再 -File；不支持 cd /d 与 head

@@ -13,5 +13,6 @@
   "cmd.openInBrowser.title": "在浏览器打开",
   "cmd.refresh.title": "刷新项目列表",
   "config.exclude.description": "扫描 package.json 时排除的 glob 模式",
-  "config.pollIntervalMs.description": "运行中脚本的端口/进程轮询间隔（毫秒）"
+  "config.pollIntervalMs.description": "运行中脚本的端口/进程轮询间隔（毫秒）",
+  "config.env.description": "注入到扩展启动的每个脚本进程的环境变量，如 { \"CODE_INSPECTOR\": \"1\" }——适用于靠环境变量开关的开发工具（code-inspector-plugin 等）"
 }

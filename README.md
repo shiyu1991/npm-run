@@ -11,7 +11,7 @@ Visual npm scripts manager for VSCode and any VSCode-based editor — Cursor, Wi
 npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、CodeBuddy、通义灵码、文心快码、Void、VSCodium 等 VSCode 系编辑器通用）：
 
 - **项目扫描**：自动扫描工作区内所有 npm 项目（支持 monorepo 子包，排除 `node_modules` 等），按项目分组展示 scripts
-- **一键运行**：脚本行内 ▶ 按钮运行，输出实时流入输出面板（按脚本复用，保留历史）
+- **一键运行**：脚本行内 ▶ 按钮运行，输出实时流入输出面板（按脚本复用，保留历史）；启动的进程自带与集成终端一致的编辑器标识环境变量，code-inspector-plugin（点击页面元素跳转源码）等工具与终端里手动 `npm run` 行为一致
 - **常用命令**：每个项目下默认折叠的「常用命令」分组，提供 install / ci / update / remove / prune / outdated，一键运行；包管理器按 lockfile 自动识别（npm / pnpm / yarn），pnpm 项目不会误跑 `npm install`，remove 会先让你输入包名
 - **多端口服务追踪**：脚本运行后自动发现其进程树监听的所有端口，作为服务子节点实时增删——一个脚本跑出多个服务一目了然
 - **服务管理**：服务节点显示 IP + 端口，可单独结束某一个服务（如 `concurrently` 同时起的 3 个服务只杀 1 个），也可单独重启某一个服务，其余不受影响
@@ -54,13 +54,14 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 |---|---|---|
 | `npm-run.exclude` | `["**/node_modules/**", ...]` | 扫描 package.json 时排除的 glob |
 | `npm-run.pollIntervalMs` | `1500` | 端口/进程轮询间隔（毫秒），修改即时生效 |
+| `npm-run.env` | `{}` | 注入到扩展启动的每个脚本进程的环境变量，如 `{ "CODE_INSPECTOR": "1" }`——仅用于必须直接读进程环境的工具；项目级开关放 `.env.local`（Next.js 等框架自动加载）通常更合适，多数项目零配置 |
 
 ## English
 
 Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Windsurf, Kiro, Trae, CodeBuddy, Tongyi Lingma, Baidu Comate, Void, VSCodium, ...):
 
 - **Project scan**: finds every `package.json` in the workspace (monorepo friendly, `node_modules` excluded), groups scripts by project
-- **One-click run**: inline ▶ button per script (⟳ restarts the whole script, ■ stops it); output streams into a per-script output channel
+- **One-click run**: inline ▶ button per script (⟳ restarts the whole script, ■ stops it); output streams into a per-script output channel; spawned processes carry the same editor-identity env vars as the integrated terminal, so tools like code-inspector-plugin (click a page element to jump to source) behave exactly as when you `npm run` in a terminal
 - **Common commands**: a collapsible group per project with install / ci / update / remove / prune / outdated, run with one click; the package manager is detected from the lockfile (npm / pnpm / yarn) so a pnpm project never runs `npm install`, and `remove` asks for the package name first
 - **Multi-port service tracking**: automatically discovers every listening port of the script's process tree and shows them as service children — one script, multiple services, at a glance
 - **Per-service control**: each service node shows IP + port with ⟳ restart and ✕ kill buttons; restart or kill just one service (e.g. one of three started via `concurrently`) without touching the others
@@ -103,6 +104,7 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 |---|---|---|
 | `npm-run.exclude` | `["**/node_modules/**", ...]` | Glob patterns excluded when scanning for package.json |
 | `npm-run.pollIntervalMs` | `1500` | Port/process poll interval in ms; changes apply immediately |
+| `npm-run.env` | `{}` | Environment variables injected into every script process started by the extension, e.g. `{ "CODE_INSPECTOR": "1" }` — only for tools that must read the process environment directly; project-level switches usually belong in `.env.local` (frameworks like Next.js load it automatically), so most projects need no configuration |
 
 ## License
 

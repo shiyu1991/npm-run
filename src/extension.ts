@@ -17,7 +17,11 @@ let runner: ScriptRunner | undefined;
 export function activate(context: vscode.ExtensionContext): void {
   initLang(vscode.env.language);
   const scanner = new ProjectScanner();
-  runner = new ScriptRunner();
+  // npm-run.env：注入到脚本进程的用户环境变量（如 code-inspector-plugin 的 CODE_INSPECTOR=1），
+  // 每次 spawn 时读取，修改配置后启动的脚本即生效
+  runner = new ScriptRunner(
+    () => vscode.workspace.getConfiguration('npm-run').get<Record<string, unknown>>('env') ?? {}
+  );
   const instances = new Map<string, RunningScript>();
   /** 外部运行检测结果（key 与 instances 同构）：手动刷新快照式更新 */
   const externalRunning = new Map<string, ExternalState>();
