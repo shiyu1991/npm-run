@@ -9,6 +9,8 @@
 const zhDict = {
   // ── 树视图 ──
   scriptsCount: (n: number) => `${n} 个脚本`,
+  projectRunning: (n: number) => `运行中 (${n})`,
+  projectRunningTip: (n: number) => `${n} 个服务进程运行中（展开查看明细）`,
   running: '运行中',
   adopted: '扩展代管',
   scriptTooltipRunning: (pid: number) => `（PID ${pid}）`,
@@ -102,6 +104,8 @@ const zhDict = {
 const enDict: typeof zhDict = {
   // ── Tree view ──
   scriptsCount: (n: number) => `${n} script${n === 1 ? '' : 's'}`,
+  projectRunning: (n: number) => `running (${n})`,
+  projectRunningTip: (n: number) => `${n} service process${n === 1 ? '' : 'es'} running (expand for details)`,
   running: 'running',
   adopted: 'adopted',
   scriptTooltipRunning: (pid: number) => ` (PID ${pid})`,

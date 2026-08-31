@@ -37,13 +37,22 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
   getTreeItem(node: TreeNode): vscode.TreeItem {
     if (node.kind === 'project') {
+      const running = this.runningCountOf(node.project);
       const item = new vscode.TreeItem(
         node.project.name,
         vscode.TreeItemCollapsibleState.Expanded
       );
-      item.iconPath = new vscode.ThemeIcon('package');
-      item.description = t.scriptsCount(node.project.scripts.size);
-      item.tooltip = node.project.dir.fsPath;
+      // 项目收起时也一眼可见：绿色圆点 + 运行中数量（运行脚本 × 各自服务数聚合）
+      item.iconPath =
+        running > 0
+          ? new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('testing.iconPassed'))
+          : new vscode.ThemeIcon('package');
+      item.description =
+        running > 0 ? t.projectRunning(running) : t.scriptsCount(node.project.scripts.size);
+      item.tooltip =
+        running > 0
+          ? `${node.project.dir.fsPath}\n${t.projectRunningTip(running)}`
+          : node.project.dir.fsPath;
       item.contextValue = 'project';
       return item;
     }
@@ -204,5 +213,26 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       return [];
     }
     return [];
+  }
+
+  /**
+   * 项目下正在运行的服务进程数：每个运行中的脚本按其监听端口数计
+   * （尚未检测到端口时按 1 计，至少表明脚本在跑）；外部运行按端口数同理。
+   */
+  private runningCountOf(project: NpmProject): number {
+    let count = 0;
+    for (const script of project.scripts.keys()) {
+      const key = this.keyOf(project, script);
+      const inst = this.instances.get(key);
+      if (inst) {
+        count += Math.max(1, inst.services.size);
+        continue;
+      }
+      const ext = this.externalRunning.get(key);
+      if (ext) {
+        count += Math.max(1, ext.hit.ports.length);
+      }
+    }
+    return count;
   }
 }

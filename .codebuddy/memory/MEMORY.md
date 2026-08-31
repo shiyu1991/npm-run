@@ -1,12 +1,16 @@
 # npm-run 项目记忆
 
 ## 项目定位
-- d:\workspace\npm-run 是 VSCode 扩展 "npm-run Manager"（package.json name: npm-run-manager，当前 0.8.2；已发布至 0.8.1，0.8.2 待发）
-- 功能：扫描工作区 npm 项目、一键运行脚本、按端口追踪/结束服务、外部脚本运行检测（手动刷新）、常用命令、在浏览器打开
+- d:\workspace\npm-run 是 VSCode 扩展 "npm-run Manager"（package.json name: npm-run-manager，当前 0.8.3；已发布至 0.8.2，0.8.3 已装待实测/待发布）
+- 功能：扫描工作区 npm 项目、一键运行脚本、按端口追踪/结束服务、外部脚本运行检测（手动刷新）、常用命令、在浏览器打开、项目行运行中聚合标识（🟢 运行中 (n)）
 - 构建：esbuild（node esbuild.js），测试：mocha（out-test），仅 Windows 集成测试在 test/integration.test.ts
 - fixtures/app-a 起两个静态 server（45731/45732）；app-b 固定端口 45800
 
-## 0.8.2 脚本进程环境三件套（2026-08-31，用户已实测通过，待发市场）
+## 0.8.3 项目行运行中标识（2026-08-31，详见当日日志）
+- runningCountOf：每个运行中脚本按 services.size 计（至少 1）、外部按 ports.length 计（至少 1）——口径依据用户示例（dev 2 端口→(2)，非脚本数）；绿点=ThemeIcon('circle-filled', ThemeColor('testing.iconPassed'))，description 换「运行中 (n)」
+- **教训：改 CHANGELOG 前先看最新发布状态**——0.8.2 已发布，新功能差点塞进已发布版本段；版本号三处对齐（package.json/package-lock×2）
+
+## 0.8.2 脚本进程环境三件套（2026-08-31，已发布双市场）
 - 起因：用户 core 项目（z-vlm-forge）经面板跑 dev:webpack + code-inspector-plugin，点击页面元素无法跳源码；hover"运行脚本"（集成终端）正常
 - **终极根因：ELECTRON_RUN_AS_NODE=1**——VSCode 系扩展宿主自身以纯 Node 模式运行，该变量遗传给 spawn 的脚本进程；launch-ide 再启动编辑器 exe（同 Electron 二进制）被拉成纯 Node 模式，`-g` 被拒 exit 9（Node 非法选项退出码=9，stderr "bad option: -g"）。集成终端由主进程（GUI 模式）派生无此变量故正常。**修复：spawnEnv() 里 delete env.ELECTRON_RUN_AS_NODE**
 - **新增配置 npm-run.env**（object）：注入到所有 spawn（run/respawnService）的用户环境变量，spawn 时一次性读取（改配置必须 ⟳ 重启脚本）；合并优先级 process.env < 编辑器标识 < 用户 env（String 归一，undefined/null 跳过）。用户场景配 `{"CODE_INSPECTOR":"1","CODE_EDITOR":"<CodeBuddy CN.exe 全路径>"}`

@@ -23,7 +23,7 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 ### 界面结构
 
 ```
-📦 项目名（如 app-a）            3 个脚本
+🟢 项目名（如 app-a）            运行中 (3)   ← 绿点+计数，项目收起也可见
 ├─ ⌨ dev (运行中)               vite --host   [⟳ ■ 📄 ↗]
 │  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕ ↗]
 │  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕ ↗]
@@ -73,7 +73,7 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 ### Panel layout
 
 ```
-📦 project name (e.g. app-a)     3 scripts
+🟢 project name (e.g. app-a)     running (3)   ← green dot + count, visible even when collapsed
 ├─ ⌨ dev (running)              vite --host   [⟳ ■ 📄 ↗]
 │  ├─ 📡 127.0.0.1:5173 · [::]:5173  PID 1234  [⟳ ✕ ↗]
 │  └─ 📡 127.0.0.1:3000              PID 5678  [⟳ ✕ ↗]

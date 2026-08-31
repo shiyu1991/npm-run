@@ -1,5 +1,10 @@
 # Changelog / 更新日志
 
+## 0.8.3 / 2026-08-31
+
+- New: the project row now shows a green dot and a `running (n)` count (each running script counted by its listening services, minimum 1, external runs included), so a collapsed project no longer hides what is still running inside
+- 新增：项目行新增绿色圆点与「运行中 (n)」计数（每个运行中脚本按其监听服务数计，至少计 1，含外部运行），项目收起后也能一眼看出里面还有活着的进程
+
 ## 0.8.2 / 2026-08-31
 
 - Fixed: scripts can now launch your editor (or any Electron app) again — the extension host runs with `ELECTRON_RUN_AS_NODE=1`, which leaked into every spawned script; tools such as code-inspector-plugin's launch-ide then started the editor binary in plain Node mode where `-g` is rejected with exit code 9 (integrated terminals never have this variable, which is why a terminal run worked fine). The variable is now stripped from spawned environments
