@@ -55,7 +55,7 @@
 - CodeBuddy CN 的扩展装在 <用户目录>\.codebuddycn\extensions\（不是 .codebuddy）；**本仓库记忆多台机器共用（一台 Administrator、一台 HeShiyu），机器相关路径以当前 %USERPROFILE% 为准，勿盲信旧记录**
 - CodeBuddy CLI：<用户目录>\AppData\Local\Programs\CodeBuddy CN\bin\buddycn.cmd（不在 PATH，需带引号用 & 调用）；装完 VSIX 必须重载窗口
 - 本地安装：`& "<cli路径>" --install-extension "<vsix绝对路径>" --force`；验证安装结果读 <用户目录>\.codebuddycn\extensions\npm-run-dev.npm-run-manager-<ver>\package.json（workspace 外，用 node 读）
-- PowerShell 会吞 $ 和 $_，复杂命令写 .ps1 再 -File；不支持 cd /d 与 head
+- PowerShell 会吞 $ 和 $_，复杂命令写 .ps1 再 -File；不支持 cd /d 与 head；`node -e` 带中文/引号转义必坏，写 .cjs 文件再跑；**`git commit -m` 中文同样乱码（GBK 字节进历史，显示与存储双重乱）——必须 node .cjs 写 UTF-8 文件再 `git commit -F <file>`**；PowerShell Test-Path 中文路径可能乱码误报，用 node fs 验证
 - nls 语言解析只看编辑器显示语言；Open VSX 验证用 /api/<ns>/<ext>/<version> 端点
 - .vscodeignore 会覆盖 vsce 默认排除规则，需显式列 src/**、out-test/** 等
 
