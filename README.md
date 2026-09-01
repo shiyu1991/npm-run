@@ -12,6 +12,7 @@ npm 脚本可视化管理面板（VSCode、Cursor、Windsurf、Kiro、Trae、Cod
 
 - **项目扫描**：自动扫描工作区内所有 npm 项目（支持 monorepo 子包，排除 `node_modules` 等），按项目分组展示 scripts
 - **运行状态一目了然**：项目行带绿色圆点与「运行中 (n)」计数（每个运行中脚本按其监听服务数计，含外部运行），项目收起后也能一眼看出里面还有活着的进程
+- **活动栏徽标**：有服务运行时活动栏图标显示数量角标（口径与项目行「运行中 (n)」一致），不用展开面板也能一眼看出还有活着的进程
 - **一键运行**：脚本行内 ▶ 按钮运行，输出实时流入输出面板（按脚本复用，保留历史）；启动的进程自带与集成终端一致的编辑器标识环境变量，code-inspector-plugin（点击页面元素跳转源码）等工具与终端里手动 `npm run` 行为一致
 - **常用命令**：每个项目下默认折叠的「常用命令」分组，提供 install / ci / update / remove / prune / outdated，一键运行；包管理器按 lockfile 自动识别（npm / pnpm / yarn），pnpm 项目不会误跑 `npm install`，remove 会先让你输入包名
 - **多端口服务追踪**：脚本运行后自动发现其进程树监听的所有端口，作为服务子节点实时增删——一个脚本跑出多个服务一目了然
@@ -71,6 +72,7 @@ Visual npm scripts manager for VSCode and any VSCode-based editor (Cursor, Winds
 
 - **Project scan**: finds every `package.json` in the workspace (monorepo friendly, `node_modules` excluded), groups scripts by project
 - **Running at a glance**: the project row shows a green dot and a `running (n)` count (each running script counted by its listening services, external runs included), so a collapsed project never hides what is still running inside
+- **Activity-bar badge**: while services are running, the activity-bar icon carries a numeric badge (same counting as the project rows' `running (n)`), so you can tell something is still up without opening the view
 - **One-click run**: inline ▶ button per script (⟳ restarts the whole script, ■ stops it); output streams into a per-script output channel; spawned processes carry the same editor-identity env vars as the integrated terminal, so tools like code-inspector-plugin (click a page element to jump to source) behave exactly as when you `npm run` in a terminal
 - **Common commands**: a collapsible group per project with install / ci / update / remove / prune / outdated, run with one click; the package manager is detected from the lockfile (npm / pnpm / yarn) so a pnpm project never runs `npm install`, and `remove` asks for the package name first
 - **Multi-port service tracking**: automatically discovers every listening port of the script's process tree and shows them as service children — one script, multiple services, at a glance

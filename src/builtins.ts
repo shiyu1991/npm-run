@@ -50,7 +50,12 @@ export function builtinCommands(pm: PackageManager): BuiltinCommand[] {
  * 必须与同名脚本区分：package.json 允许 `install` 等生命周期脚本，
  * 若共用 key 会导致「npm run install」与「npm install」的状态、输出、停止互相串台。
  */
-export const builtinKey = (id: string): string => `builtin:${id}`;
+const BUILTIN_PREFIX = 'builtin:';
+
+export const builtinKey = (id: string): string => `${BUILTIN_PREFIX}${id}`;
+
+/** builtinKey 的逆判断：实例脚本名是否为内置命令（徽标等统计口径区分脚本与内置命令用） */
+export const isBuiltinName = (name: string): boolean => name.startsWith(BUILTIN_PREFIX);
 
 /** 完整命令行文本（展示用），如 `pnpm install --frozen-lockfile` */
 export function commandLine(pm: PackageManager, args: readonly string[]): string {

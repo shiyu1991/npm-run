@@ -1,5 +1,10 @@
 # Changelog / 更新日志
 
+## 0.9.2 / 2026-09-01
+
+- New: the activity-bar icon now shows a numeric badge while services are running, so you can see at a glance that something is still up without opening the view. Counting matches the project rows' "running (n)" (each running script counts its listening services, minimum 1, external runs included; one-shot common commands are not counted). Note: VS Code renders view badges as a numbered dot — a dot without a number is not supported for activity-bar icons
+- 新增：有服务运行时活动栏图标显示数量角标，不展开视图也能一眼看出还有活着的进程。计数口径与项目行「运行中 (n)」一致（每个运行中脚本按监听服务数计，至少 1，含外部运行；一次性常用命令不计入）。说明：VS Code 的视图徽标为带数字的圆点，活动栏图标不支持无数字的纯圆点形态
+
 ## 0.9.1 / 2026-09-01
 
 - New: crash notification — when a script exits abnormally (non-zero exit code, e.g. a dev server that died) and you did not stop it yourself, a notification pops up with a "Show Output" button that jumps straight to the last log lines; normal exits (e.g. a finished build), user-initiated stops/restarts and the "extension-adopted" transition never disturb you

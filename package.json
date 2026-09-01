@@ -2,7 +2,7 @@
   "name": "npm-run-manager",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",

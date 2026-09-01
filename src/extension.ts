@@ -6,7 +6,8 @@ import { snapshotProcesses, snapshotPorts } from './sysSnapshot';
 import { killProcessTree } from './killTree';
 import { toBrowseUrl } from './urlBuilder';
 import { isDependentWorker } from './respawnGuard';
-import { BuiltinCommand, builtinKey, commandLine } from './builtins';
+import { BuiltinCommand, builtinKey, commandLine, isBuiltinName } from './builtins';
+import { activityBadgeCount } from './activityBadge';
 import { NpmRunTreeProvider, TreeNode, LaunchGroupProject } from './treeProvider';
 import { NpmProject, RunningScript, ExternalState } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
@@ -77,6 +78,15 @@ export function activate(context: vscode.ExtensionContext): void {
     treeDataProvider: provider,
     showCollapseAll: true,
   });
+
+  // 活动栏图标徽标：有服务运行时显示数量角标，无运行时清除。
+  // 口径与项目行「运行中 (n)」一致（每脚本按监听服务数计、至少 1，含外部运行）；
+  // 内置命令是一次性操作且不监听端口，树口径不计入，此处同样排除。
+  const updateBadge = (): void => {
+    const live = [...instances.values()].filter((inst) => !isBuiltinName(inst.script));
+    const n = activityBadgeCount(live, externalRunning.values());
+    treeView.badge = n > 0 ? { value: n, tooltip: t.badgeRunning(n) } : undefined;
+  };
 
   const intervalMs = vscode.workspace
     .getConfiguration('npm-run')
@@ -825,6 +835,8 @@ export function activate(context: vscode.ExtensionContext): void {
     // 扫描结果变化（初始扫描完成 / package.json 增删改）→ 刷新树视图
     // 没有这条订阅，初始异步扫描完成后树不会重渲染，一直显示为空
     scanner.onDidChange(() => provider.refresh()),
+    // 树数据每次刷新（含监控 tick、启停脚本、外部检测）后同步活动栏徽标
+    provider.onDidChangeTreeData(updateBadge),
     vscode.commands.registerCommand('npm-run.runScript', runScript),
     vscode.commands.registerCommand('npm-run.stopScript', stopScript),
     vscode.commands.registerCommand('npm-run.restartScript', restartScript),
