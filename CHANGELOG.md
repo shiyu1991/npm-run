@@ -1,5 +1,10 @@
 # Changelog / 更新日志
 
+## 0.9.3 / 2026-09-01
+
+- New: the launch-group row now ends with a 🗑 delete button — one click opens the same confirmation as the context-menu delete, no more right-click hunting
+- 新增：启动组行尾新增 🗑 删除按钮——点击即弹出与右键删除完全一致的确认提示，不用再翻右键菜单
+
 ## 0.9.2 / 2026-09-01
 
 - New: the activity-bar icon now shows a numeric badge while services are running, so you can see at a glance that something is still up without opening the view. Counting matches the project rows' "running (n)" (each running script counts its listening services, minimum 1, external runs included; one-shot common commands are not counted). Note: VS Code renders view badges as a numbered dot — a dot without a number is not supported for activity-bar icons

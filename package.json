@@ -2,7 +2,7 @@
   "name": "npm-run-manager",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -137,6 +137,7 @@
       {
         "command": "npm-run.deleteGroup",
         "title": "%cmd.deleteGroup.title%",
+        "icon": "$(trash)",
         "category": "npm-run"
       },
       {
@@ -301,6 +302,16 @@
         },
         {
           "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == launch-group-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.deleteGroup",
+          "when": "view == npm-run.scripts && viewItem == launch-group",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.deleteGroup",
           "when": "view == npm-run.scripts && viewItem == launch-group-running",
           "group": "inline"
         },
