@@ -1,0 +1,8 @@
+{
+    "npm-run.groups": {
+        "test": [
+            "fixtures/mono:dev",
+            "fixtures/mono/packages/admin:dev"
+        ]
+    }
+}
