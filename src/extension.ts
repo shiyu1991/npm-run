@@ -7,13 +7,30 @@ import { killProcessTree } from './killTree';
 import { toBrowseUrl } from './urlBuilder';
 import { isDependentWorker } from './respawnGuard';
 import { BuiltinCommand, builtinKey, commandLine } from './builtins';
-import { NpmRunTreeProvider, TreeNode } from './treeProvider';
+import { NpmRunTreeProvider, TreeNode, LaunchGroupProject } from './treeProvider';
 import { NpmProject, RunningScript, ExternalState } from './types';
 import { buildProcessIndex, collectSubtreePids } from './processTree';
 import { matchExternalScripts } from './externalDetect';
+import { resolveGroups, makeRef, relativeDirOf, ResolvedGroup } from './launchGroups';
 import { t, initLang } from './i18n';
 
 let runner: ScriptRunner | undefined;
+
+/** 工作区 folder 列表 → relativeDirOf 所需的最小结构 */
+function workspaceFolders(): { name: string; fsPath: string }[] {
+  return (vscode.workspace.workspaceFolders ?? []).map((f) => ({ name: f.name, fsPath: f.uri.fsPath }));
+}
+
+/** NpmProject → launchGroups 解析所需的最小结构（raw 透传原对象） */
+function toGroupProjects(projects: readonly NpmProject[]): LaunchGroupProject[] {
+  const folders = workspaceFolders();
+  return projects.map((p) => ({
+    name: p.name,
+    relativeDir: relativeDirOf(p.dir.fsPath, folders),
+    scripts: new Set(p.scripts.keys()),
+    raw: p,
+  }));
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   initLang(vscode.env.language);
@@ -27,12 +44,34 @@ export function activate(context: vscode.ExtensionContext): void {
   /** 外部运行检测结果（key 与 instances 同构）：手动刷新快照式更新 */
   const externalRunning = new Map<string, ExternalState>();
 
+  const readGroups = (): Record<string, readonly string[]> =>
+    vscode.workspace.getConfiguration('npm-run').get<Record<string, readonly string[]>>('groups') ?? {};
+
+  const resolvedGroups = (): ResolvedGroup<LaunchGroupProject>[] =>
+    resolveGroups(readGroups(), toGroupProjects(scanner.projects));
+
+  /** 回写启动组配置到工作区 settings.json；失败（如未打开文件夹）弹错误并返回 false */
+  const writeGroups = async (groups: Record<string, string[]>): Promise<boolean> => {
+    try {
+      await vscode.workspace
+        .getConfiguration('npm-run')
+        .update('groups', groups, vscode.ConfigurationTarget.Workspace);
+      return true;
+    } catch (e) {
+      void vscode.window.showErrorMessage(
+        t.groupWriteFail(e instanceof Error ? e.message : String(e))
+      );
+      return false;
+    }
+  };
+
   const provider = new NpmRunTreeProvider(
     scanner,
     instances,
     instanceKey,
     externalRunning,
-    runner.noRespawnCmdlines
+    runner.noRespawnCmdlines,
+    resolvedGroups
   );
   const treeView = vscode.window.createTreeView('npm-run.scripts', {
     treeDataProvider: provider,
@@ -50,6 +89,10 @@ export function activate(context: vscode.ExtensionContext): void {
         monitor.setInterval(
           Math.max(500, vscode.workspace.getConfiguration('npm-run').get<number>('pollIntervalMs', 1500))
         );
+      }
+      // 启动组配置变化（含本扩展 UI 回写）→ 即时刷新树
+      if (e.affectsConfiguration('npm-run.groups')) {
+        provider.refresh();
       }
     })
   );
@@ -101,7 +144,7 @@ export function activate(context: vscode.ExtensionContext): void {
   }
 
   const runnerEvents: RunnerEvents = {
-    onExit(key, instance) {
+    onExit(key, instance, code) {
       // 脚本根进程退出但仍有代管服务：保留实例继续管理（树/监控/停止按钮仍可用）
       if (instance.adoptedPids.size > 0) {
         provider.refresh();
@@ -110,6 +153,19 @@ export function activate(context: vscode.ExtensionContext): void {
       instances.delete(key);
       monitor.detach(key);
       provider.refresh();
+      // 崩溃通知：非用户主动停止且异常退出（code 非 0；null = 被信号杀等，同样算异常）
+      if (!instance.userInitiatedStop && code !== 0) {
+        void vscode.window
+          .showErrorMessage(
+            t.crashNotified(instance.project.name, instance.script, code ?? 'null'),
+            t.showOutput
+          )
+          .then((pick) => {
+            if (pick === t.showOutput) {
+              instance.output.show();
+            }
+          });
+      }
     },
     onConflictPort(instance, port) {
       void handleConflict(instance, port);
@@ -208,7 +264,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     const name = nodeScriptName(node);
-    if (name === undefined) {
+    if (name === undefined || (node.kind !== 'script' && node.kind !== 'builtin')) {
       return;
     }
     const err = await runner!.stop(node.project, name);
@@ -227,7 +283,11 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!node || (node.kind !== 'script' && node.kind !== 'service')) {
       return;
     }
-    const { project, script } = node;
+    await restartByKey(node.project, node.script);
+  };
+
+  /** 整脚本重启核心（stop → 等待退出清理 → 重新启动）；restarting 集防连点连环重启 */
+  async function restartByKey(project: NpmProject, script: string): Promise<void> {
     const key = instanceKey(project, script);
     if (restarting.has(key)) {
       return; // 一次重启还在进行中，忽略重复触发
@@ -251,6 +311,28 @@ export function activate(context: vscode.ExtensionContext): void {
     } finally {
       restarting.delete(key);
     }
+  }
+
+  /** 组成员行 ⟳：未运行 → 直接启动（组内一键拉起挂掉的成员）；运行中 → 整脚本重启 */
+  /** 成员行 ▶（仅未运行态显示）：启动该成员脚本 */
+  const memberStart = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'group-member' || !node.member.project || !node.member.script) {
+      return;
+    }
+    await startScript(node.member.project.raw, node.member.script);
+  };
+
+  /** 成员行 ⟳（仅运行态显示）：整脚本重启（对依赖主进程的 worker 安全：整树杀+整树拉） */
+  const memberRestart = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'group-member' || !node.member.project || !node.member.script) {
+      return;
+    }
+    const project = node.member.project.raw;
+    if (!runner!.isRunning(project, node.member.script)) {
+      void vscode.window.showWarningMessage(t.notRunning);
+      return;
+    }
+    await restartByKey(project, node.member.script);
   };
 
   /** 单服务独立重启进行中的守卫（key|port），防连点 */
@@ -309,12 +391,42 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
-  const showOutput = (node?: TreeNode) => {
+  const showOutput = async (node?: TreeNode) => {
     if (!node) {
       return;
     }
+    // 组行 📄：查看运行中成员的输出；多个成员先选一个
+    if (node.kind === 'launch-group') {
+      const live = node.group.members.filter(
+        (m) => m.project && m.script && instances.has(instanceKey(m.project.raw, m.script!))
+      );
+      if (live.length === 0) {
+        return; // 菜单 when 已限制运行态，防御性兜底
+      }
+      if (live.length === 1) {
+        instances.get(instanceKey(live[0].project!.raw, live[0].script!))?.output.show();
+        return;
+      }
+      const picked = await vscode.window.showQuickPick(
+        live.map((m) => ({
+          label: `$(terminal) ${m.script}`,
+          description: m.project!.name,
+          inst: instances.get(instanceKey(m.project!.raw, m.script!))!,
+        })),
+        { placeHolder: t.pickMemberOutput }
+      );
+      picked?.inst.output.show();
+      return;
+    }
+    // 成员行 📄：该成员的输出通道
+    if (node.kind === 'group-member') {
+      if (node.member.project && node.member.script) {
+        instances.get(instanceKey(node.member.project.raw, node.member.script))?.output.show();
+      }
+      return;
+    }
     const name = nodeScriptName(node);
-    if (name === undefined) {
+    if (name === undefined || (node.kind !== 'script' && node.kind !== 'builtin')) {
       return;
     }
     instances.get(instanceKey(node.project, name))?.output.show();
@@ -329,6 +441,32 @@ export function activate(context: vscode.ExtensionContext): void {
     if (node.kind === 'external-port') {
       const p = node.state.hit.ports.find((x) => x.port === node.port);
       return p ? [{ port: p.port, addresses: p.addresses }] : [];
+    }
+    // 组成员行：已运行成员的脚本行同款目标（全部监听端口，升序）
+    if (node.kind === 'group-member') {
+      if (!node.member.project || !node.member.script) {
+        return [];
+      }
+      const inst = instances.get(instanceKey(node.member.project.raw, node.member.script));
+      return inst
+        ? [...inst.services.values()]
+            .sort((a, b) => a.port - b.port)
+            .map((s) => ({ port: s.port, addresses: s.addresses }))
+        : [];
+    }
+    // 组行：聚合全部运行中成员的监听端口（升序；多端口时沿用先选后开的交互）
+    if (node.kind === 'launch-group') {
+      const targets: { port: number; addresses: string[] }[] = [];
+      for (const m of node.group.members) {
+        if (!m.project || !m.script) {
+          continue;
+        }
+        const inst = instances.get(instanceKey(m.project.raw, m.script));
+        if (inst) {
+          targets.push(...[...inst.services.values()].map((s) => ({ port: s.port, addresses: s.addresses })));
+        }
+      }
+      return targets.sort((a, b) => a.port - b.port);
     }
     if (node.kind !== 'script') {
       return [];
@@ -489,6 +627,199 @@ export function activate(context: vscode.ExtensionContext): void {
     provider.refresh();
   };
 
+  /** 启动组：逐成员启动；已在运行（幂等）与外部运行中的成员跳过，完成后一条汇总通知 */
+  const runGroup = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'launch-group') {
+      return;
+    }
+    let started = 0;
+    let skipped = 0;
+    let failed = 0;
+    let unresolved = 0;
+    for (const member of node.group.members) {
+      if (!member.project || !member.script) {
+        unresolved++;
+        continue;
+      }
+      const project = member.project.raw;
+      const script = member.script;
+      const key = instanceKey(project, script);
+      // 预检跳过：运行中（幂等）与外部运行中（避免逐个弹确认打断 + 端口冲突风险）
+      if (runner!.isRunning(project, script) || externalRunning.has(key)) {
+        skipped++;
+        continue;
+      }
+      await startScript(project, script);
+      if (runner!.isRunning(project, script)) {
+        started++;
+      } else {
+        failed++;
+      }
+    }
+    provider.refresh();
+    void vscode.window.showInformationMessage(
+      t.groupResult(node.group.name, started, skipped, failed, unresolved)
+    );
+  };
+
+  /** 脚本行右键「添加到启动组」：QuickPick 选已有组或新建，回写工作区配置 */
+  const addToGroup = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'script') {
+      return;
+    }
+    const { project, script } = node;
+    const ref = makeRef(relativeDirOf(project.dir.fsPath, workspaceFolders()), project.name, script);
+    const current: Record<string, string[]> = {};
+    for (const [g, refs] of Object.entries(readGroups())) {
+      current[g] = Array.isArray(refs) ? [...refs] : [];
+    }
+    interface GroupPick extends vscode.QuickPickItem {
+      target?: string;
+    }
+    const picks: GroupPick[] = [
+      ...Object.keys(current).map((g) => ({
+        label: `$(rocket) ${g}`,
+        description: t.scriptsCount(current[g].length),
+        target: g,
+      })),
+      { label: `$(add) ${t.newGroupOption}` },
+    ];
+    const picked = await vscode.window.showQuickPick(picks, {
+      placeHolder: t.addToGroupPick(script),
+    });
+    if (!picked) {
+      return;
+    }
+    let groupName = picked.target;
+    if (!groupName) {
+      groupName = (await vscode.window.showInputBox({ prompt: t.newGroupNamePrompt }))?.trim();
+      if (!groupName) {
+        return;
+      }
+      current[groupName] = current[groupName] ?? [];
+    }
+    if (!current[groupName].includes(ref)) {
+      current[groupName].push(ref);
+      await writeGroups(current);
+    }
+  };
+
+  /** 成员行 ✕：从组中移除该成员（回写配置） */
+  const removeFromGroup = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'group-member') {
+      return;
+    }
+    const current: Record<string, string[]> = {};
+    for (const [g, refs] of Object.entries(readGroups())) {
+      current[g] = Array.isArray(refs) ? [...refs] : [];
+    }
+    if (!Array.isArray(current[node.groupName])) {
+      return;
+    }
+    current[node.groupName] = current[node.groupName].filter((r) => r !== node.member.ref);
+    await writeGroups(current);
+  };
+
+  /** 组行右键「删除启动组」：modal 确认后整组移除（不影响正在运行的脚本） */
+  const deleteGroup = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'launch-group') {
+      return;
+    }
+    const confirm = await vscode.window.showWarningMessage(
+      t.confirmDeleteGroup(node.group.name, node.group.members.length),
+      { modal: true },
+      t.confirmDeleteBtn
+    );
+    if (confirm !== t.confirmDeleteBtn) {
+      return;
+    }
+    const current: Record<string, string[]> = {};
+    for (const [g, refs] of Object.entries(readGroups())) {
+      current[g] = Array.isArray(refs) ? [...refs] : [];
+    }
+    delete current[node.group.name];
+    await writeGroups(current);
+  };
+
+  /** 组行 ■：停止组内全部运行中的成员（逐个 stop，用户自启脚本无需确认） */
+  const stopGroup = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'launch-group') {
+      return;
+    }
+    for (const member of node.group.members) {
+      if (!member.project || !member.script) {
+        continue;
+      }
+      const project = member.project.raw;
+      if (runner!.isRunning(project, member.script)) {
+        const err = await runner!.stop(project, member.script);
+        if (err) {
+          void vscode.window.showErrorMessage(t.stopFail(err));
+        }
+      }
+    }
+    // close 事件级联 onExit → refresh；此处兜底立即刷新一次
+    provider.refresh();
+  };
+
+  /** 成员行 ■：停止该成员脚本 */
+  const stopMember = async (node?: TreeNode) => {
+    if (!node || node.kind !== 'group-member' || !node.member.project || !node.member.script) {
+      return;
+    }
+    const project = node.member.project.raw;
+    if (!runner!.isRunning(project, node.member.script)) {
+      void vscode.window.showWarningMessage(t.notRunning);
+      return;
+    }
+    const err = await runner!.stop(project, node.member.script);
+    if (err) {
+      void vscode.window.showErrorMessage(t.stopFail(err));
+    }
+  };
+
+  /** 视图标题栏 ＋：输入组名 → 多选脚本一次收集成员 → 创建（组名已存在则追加去重） */
+  const newGroup = async () => {
+    const name = (await vscode.window.showInputBox({ prompt: t.newGroupNamePrompt }))?.trim();
+    if (!name) {
+      return;
+    }
+    interface MemberPick extends vscode.QuickPickItem {
+      project: NpmProject;
+      script: string;
+    }
+    const folders = workspaceFolders();
+    const picks: MemberPick[] = scanner.projects.flatMap((p) =>
+      [...p.scripts.keys()].map((script) => ({
+        label: `$(terminal) ${script}`,
+        description: p.name,
+        project: p,
+        script,
+      }))
+    );
+    const chosen = await vscode.window.showQuickPick(picks, {
+      canPickMany: true,
+      placeHolder: t.pickGroupMembers,
+    });
+    const current: Record<string, string[]> = {};
+    for (const [g, refs] of Object.entries(readGroups())) {
+      current[g] = Array.isArray(refs) ? [...refs] : [];
+    }
+    const appended = Object.prototype.hasOwnProperty.call(current, name);
+    current[name] = current[name] ?? [];
+    let added = 0;
+    for (const pick of chosen ?? []) {
+      const ref = makeRef(relativeDirOf(pick.project.dir.fsPath, folders), pick.project.name, pick.script);
+      if (!current[name].includes(ref)) {
+        current[name].push(ref);
+        added++;
+      }
+    }
+    if (await writeGroups(current)) {
+      void vscode.window.showInformationMessage(t.groupCreated(name, added, appended));
+    }
+  };
+
   context.subscriptions.push(
     treeView,
     // 扫描结果变化（初始扫描完成 / package.json 增删改）→ 刷新树视图
@@ -504,6 +835,15 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('npm-run.killExternal', killExternal),
     vscode.commands.registerCommand('npm-run.openInBrowser', openInBrowser),
     vscode.commands.registerCommand('npm-run.refresh', refresh),
+    vscode.commands.registerCommand('npm-run.runGroup', runGroup),
+    vscode.commands.registerCommand('npm-run.addToGroup', addToGroup),
+    vscode.commands.registerCommand('npm-run.removeFromGroup', removeFromGroup),
+    vscode.commands.registerCommand('npm-run.deleteGroup', deleteGroup),
+    vscode.commands.registerCommand('npm-run.memberRestart', memberRestart),
+    vscode.commands.registerCommand('npm-run.memberStart', memberStart),
+    vscode.commands.registerCommand('npm-run.newGroup', newGroup),
+    vscode.commands.registerCommand('npm-run.stopGroup', stopGroup),
+    vscode.commands.registerCommand('npm-run.stopMember', stopMember),
     scanner.watch(),
     { dispose: () => monitor.dispose() }
   );

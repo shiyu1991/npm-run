@@ -44,6 +44,8 @@ export interface RunningScript {
   adoptedOnly?: boolean;
   /** 本次运行是否已提示过"检测到端口监听"（每次 run 新建实例，天然只提示一次） */
   firstPortAnnounced?: boolean;
+  /** 用户主动停止（stop/重启的杀进程阶段）：close 事件到达时 onExit 不作崩溃通知 */
+  userInitiatedStop?: boolean;
   /** 该实例的输出通道 */
   output: vscode.OutputChannel;
 }

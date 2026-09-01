@@ -3,6 +3,10 @@ import { NpmProject, RunningScript, ExternalState } from './types';
 import { BuiltinCommand, builtinCommands, builtinKey, commandLine } from './builtins';
 import { t } from './i18n';
 import { isDependentWorker } from './respawnGuard';
+import { ResolvedGroup, GroupMember, GroupProjectLike } from './launchGroups';
+
+/** launchGroups 解析输入中的项目形态：raw 携带原始 NpmProject（extension 侧构造） */
+export type LaunchGroupProject = GroupProjectLike & { raw: NpmProject };
 
 export type TreeNode =
   | { kind: 'project'; project: NpmProject }
@@ -17,7 +21,9 @@ export type TreeNode =
       external?: ExternalState;
     }
   | { kind: 'service'; project: NpmProject; script: string; instance: RunningScript; port: number }
-  | { kind: 'external-port'; project: NpmProject; script: string; state: ExternalState; port: number };
+  | { kind: 'external-port'; project: NpmProject; script: string; state: ExternalState; port: number }
+  | { kind: 'launch-group'; group: ResolvedGroup<LaunchGroupProject> }
+  | { kind: 'group-member'; groupName: string; member: GroupMember<LaunchGroupProject> };
 
 /** 树数据提供者：项目 → 脚本 → 服务（IP:端口）/ 外部端口（只读） */
 export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
@@ -31,7 +37,9 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     /** 外部运行检测结果（key 与 instances 同构）；保持单实例引用，refresh 时 clear+set */
     private readonly externalRunning: Map<string, ExternalState>,
     /** 已学习"无法单独重启"的 cmdline（来自 runner 的 respawn 失败回写，会话级） */
-    private readonly noRespawnCmdlines: ReadonlySet<string>
+    private readonly noRespawnCmdlines: ReadonlySet<string>,
+    /** 已解析的启动组（每次渲染时读取最新配置，热更新自然生效） */
+    private readonly groupsReader: () => readonly ResolvedGroup<LaunchGroupProject>[]
   ) {}
 
   refresh(): void {
@@ -39,6 +47,61 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   getTreeItem(node: TreeNode): vscode.TreeItem {
+    if (node.kind === 'launch-group') {
+      const unresolved = node.group.members.filter((m) => !m.project).length;
+      const running = this.groupRunningCount(node.group);
+      const item = new vscode.TreeItem(node.group.name, vscode.TreeItemCollapsibleState.Collapsed);
+      // 组行状态聚合（对齐项目行模式）：运行中显示旋转图标 + 运行数，收起也一目了然
+      item.description =
+        (running > 0 ? `${t.projectRunning(running)} · ` : '') +
+        t.scriptsCount(node.group.members.length) +
+        (unresolved > 0 ? ` · ${t.groupUnresolved(unresolved)}` : '');
+      if (running > 0) {
+        item.iconPath = new vscode.ThemeIcon('sync~spin');
+        item.contextValue = 'launch-group-running';
+      } else {
+        item.iconPath = new vscode.ThemeIcon('rocket');
+        item.contextValue = 'launch-group';
+      }
+      const lines = node.group.members.map((m) => {
+        if (!m.project) {
+          return `⚠ ${m.ref}（${t.memberUnresolved}）`;
+        }
+        const live = m.script !== undefined && this.instances.has(this.keyOf(m.project.raw, m.script));
+        return `${m.project.name} · ${m.script}${live ? ` ${t.running}` : ''}`;
+      });
+      item.tooltip = `${t.groupTooltipTitle(node.group.name)}\n${lines.join('\n')}`;
+      return item;
+    }
+
+    if (node.kind === 'group-member') {
+      const m = node.member;
+      const resolved = m.project !== undefined && m.script !== undefined;
+      const item = new vscode.TreeItem(
+        resolved ? `${m.project!.name} · ${m.script}` : m.ref,
+        vscode.TreeItemCollapsibleState.None
+      );
+      item.iconPath = new vscode.ThemeIcon('terminal');
+      // 成员行运行态（对齐脚本行三态模式）：运行中 → 旋转图标 + 运行中 + 运行态菜单
+      let live = false;
+      if (resolved) {
+        const inst = this.instances.get(this.keyOf(m.project!.raw, m.script!));
+        if (inst) {
+          live = true;
+          item.description = t.running;
+          item.iconPath = new vscode.ThemeIcon('sync~spin');
+          item.contextValue = 'group-member-running';
+        } else {
+          item.contextValue = 'group-member';
+        }
+      } else {
+        item.description = t.memberUnresolved;
+        item.contextValue = 'group-member';
+      }
+      item.tooltip = m.ref + (resolved ? (live ? t.memberTooltip : t.memberTooltipIdle) : '');
+      return item;
+    }
+
     if (node.kind === 'project') {
       const running = this.runningCountOf(node.project);
       const item = new vscode.TreeItem(
@@ -176,7 +239,16 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
   getChildren(node?: TreeNode): TreeNode[] {
     if (!node) {
-      return this.scanner.projects.map((project) => ({ kind: 'project', project }));
+      // 启动组平铺在树顶（全局动作区），其后为各项目
+      const groups = this.groupsReader().map((group) => ({ kind: 'launch-group' as const, group }));
+      return [...groups, ...this.scanner.projects.map((project) => ({ kind: 'project' as const, project }))];
+    }
+    if (node.kind === 'launch-group') {
+      return node.group.members.map((member) => ({
+        kind: 'group-member' as const,
+        groupName: node.group.name,
+        member,
+      }));
     }
     if (node.kind === 'project') {
       const scripts = [...node.project.scripts.entries()].map(([script, command]) => {
@@ -231,6 +303,17 @@ export class NpmRunTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   /** cmdline 是否已知/已学习为"依赖主进程、无法单独重启" */
   private isNoRespawn(cmdline: string): boolean {
     return this.noRespawnCmdlines.has(cmdline) || isDependentWorker(cmdline);
+  }
+
+  /** 组内正在运行的成员数（含扩展代管状态），组行状态聚合用 */
+  private groupRunningCount(group: ResolvedGroup<LaunchGroupProject>): number {
+    let count = 0;
+    for (const m of group.members) {
+      if (m.project && m.script && this.instances.has(this.keyOf(m.project.raw, m.script))) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /**

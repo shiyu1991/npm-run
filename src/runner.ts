@@ -160,11 +160,15 @@ export class ScriptRunner {
   async stop(project: NpmProject, script: string): Promise<string> {
     const key = instanceKey(project, script);
     const child = this.children.get(key);
+    const inst = this.runningInstances.get(key);
+    // 标记用户主动停止：随后的 close → onExit 不作崩溃通知（重启流程同样受益）
+    if (inst) {
+      inst.userInitiatedStop = true;
+    }
     const errs: string[] = [];
     if (child?.pid !== undefined) {
       errs.push(await killProcessTree(child.pid));
     }
-    const inst = this.runningInstances.get(key);
     if (inst) {
       for (const pid of [...inst.adoptedPids]) {
         errs.push(await killProcessTree(pid));
@@ -180,7 +184,13 @@ export class ScriptRunner {
         events?.onExit(key, inst, null);
       }
     }
-    return errs.find((e) => e) ?? '';
+    const firstErr = errs.find((e) => e) ?? '';
+    // kill 失败：进程可能未死、close 不会触发；回滚标志，
+    // 防止该进程之后真崩溃时被误判为"主动停止"而漏通知
+    if (firstErr && inst) {
+      inst.userInitiatedStop = false;
+    }
+    return firstErr;
   }
 
   /** 等待指定脚本退出（close 事件触发、实例清理完成后 resolve），超时兜底放行 */

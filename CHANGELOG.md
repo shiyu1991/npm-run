@@ -1,5 +1,12 @@
 # Changelog / 更新日志
 
+## 0.9.1 / 2026-09-01
+
+- New: crash notification — when a script exits abnormally (non-zero exit code, e.g. a dev server that died) and you did not stop it yourself, a notification pops up with a "Show Output" button that jumps straight to the last log lines; normal exits (e.g. a finished build), user-initiated stops/restarts and the "extension-adopted" transition never disturb you
+- New: launch groups — a ＋ button in the view title creates a group (enter a name, multi-pick scripts in one shot), or right-click any script row → "Add to Launch Group"; the group row at the top of the tree aggregates a `running (m) · n scripts` state with a spinner and offers ▶ start all (monorepo multi-package dev in one shot; already-running and externally-running members skipped, one summary notification), ■ stop all, 📄 show output (pick when several run) and ↗ open in browser (aggregates all members' ports). Groups are expandable (members show live running state); running member rows offer ⟳ restart, ■ stop, 📄 output, ↗ browser and ✕ remove, while non-running ones just show ▶ start and ✕ remove (button semantics match script rows); whole groups are deleted after a modal confirm; settings persist in the workspace `npm-run.groups` (hand-editing still works)
+- 新增：崩溃通知——脚本异常退出（退出码非 0，如 dev 服务挂掉）且并非你主动停止时弹出通知，「查看输出」直达最后几行日志；正常退出（如 build 跑完）、主动停止/重启、「扩展代管」转换均不打扰
+- 新增：启动组——视图顶部 ＋ 按钮新建组（输入组名并多选脚本一次收集），或任意脚本行右键「添加到启动组」逐个收集；树顶组行聚合显示「运行中 (m) · n 个脚本」与旋转图标，提供 ▶ 一键启动全部成员（monorepo 多包 dev 一发拉起，运行中与外部运行中的自动跳过、一条汇总通知）、■ 停止全组、📄 查看输出（多成员先选）、↗ 在浏览器打开（聚合全部成员端口）；组可展开（成员实时显示运行状态），运行中的成员行提供 ⟳ 重启、■ 停止、📄 输出、↗ 浏览器与 ✕ 移除，未运行的成员行只显示 ▶ 启动与 ✕ 移除（按钮语义与脚本行一致），整组经 modal 确认后删除；配置持久化在工作区 `npm-run.groups`，手动编辑同样有效
+
 ## 0.8.5 / 2026-08-31
 
 - Fixed: the ↗ open-in-browser button was accidentally missing on rows showing the disabled-restart icon (0.8.4 changed the row identity and the button's rule no longer matched) — opening a URL has nothing to do with process control and is always available while the service is listening

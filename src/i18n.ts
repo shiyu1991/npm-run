@@ -84,6 +84,32 @@ const zhDict = {
   portListening: (ports: string) =>
     `检测到服务监听 ${ports}，应用启动中（框架打印 Ready 前可能静默 10s+，属正常）`,
 
+  // ── 崩溃通知 ──
+  crashNotified: (name: string, script: string, code: string | number) =>
+    `「${name} · ${script}」异常退出（代码 ${code}）`,
+
+  // ── 启动组 ──
+  groupUnresolved: (n: number) => `${n} 个未解析`,
+  groupTooltipTitle: (name: string) => `启动组「${name}」\n点击 ▶ 启动全部成员`,
+  memberUnresolved: '未解析（项目不存在或脚本未声明）',
+  memberTooltip: '\n⟳ 重启 · ■ 停止 · 📄 查看输出 · ↗ 在浏览器打开',
+  memberTooltipIdle: '\n▶ 启动该脚本 · ✕ 从组移除',
+  pickMemberOutput: '查看哪个成员的输出？',
+  groupResult: (name: string, started: number, skipped: number, failed: number, unresolved: number) =>
+    `启动组「${name}」：已启动 ${started} · 跳过 ${skipped} · 失败 ${failed} · 未解析 ${unresolved}`,
+  addToGroupPick: (script: string) => `将「${script}」添加到哪个启动组？`,
+  newGroupOption: '新建启动组…',
+  newGroupNamePrompt: '输入新启动组名称',
+  pickGroupMembers: '选择组成员（可多选；稍后也可右键脚本行继续添加）',
+  groupCreated: (name: string, n: number, appended: boolean) =>
+    n > 0
+      ? `启动组「${name}」${appended ? '已存在，新添' : '已创建（'}${n} 个成员${appended ? '' : '）'}`
+      : `启动组「${name}」${appended ? '已存在（未选择新成员）' : '已创建（空），右键任意脚本行「添加到启动组」收集成员'}`,
+  confirmDeleteGroup: (name: string, n: number) =>
+    `即将删除启动组「${name}」（${n} 个成员，不影响正在运行的脚本），确定？`,
+  confirmDeleteBtn: '删除',
+  groupWriteFail: (msg: string) => `保存启动组配置失败: ${msg}`,
+
   // ── 交互弹窗 ──
   conflictOwnedByScript: (port: number, name: string, script: string) =>
     `端口 ${port} 被脚本「${name} · ${script}」占用，请先停止该脚本后重试`,
@@ -186,6 +212,32 @@ const enDict: typeof zhDict = {
   // ── Monitor notices ──
   portListening: (ports: string) =>
     `Detected service listening on ${ports}; app is starting (frameworks may stay silent 10s+ before printing Ready — this is normal)`,
+
+  // ── Crash notice ──
+  crashNotified: (name: string, script: string, code: string | number) =>
+    `"${name} · ${script}" exited abnormally (code ${code})`,
+
+  // ── Launch groups ──
+  groupUnresolved: (n: number) => `${n} unresolved`,
+  groupTooltipTitle: (name: string) => `Launch group "${name}"\nClick ▶ to start all members`,
+  memberUnresolved: 'Unresolved (project not found or script not declared)',
+  memberTooltip: '\n⟳ restart · ■ stop · 📄 show output · ↗ open in browser',
+  memberTooltipIdle: '\n▶ start this script · ✕ remove from group',
+  pickMemberOutput: 'Show output of which member?',
+  groupResult: (name: string, started: number, skipped: number, failed: number, unresolved: number) =>
+    `Launch group "${name}": started ${started} · skipped ${skipped} · failed ${failed} · unresolved ${unresolved}`,
+  addToGroupPick: (script: string) => `Add "${script}" to which launch group?`,
+  newGroupOption: 'New launch group…',
+  newGroupNamePrompt: 'Name of the new launch group',
+  pickGroupMembers: 'Pick group members (multi-select; add more anytime via the script row context menu)',
+  groupCreated: (name: string, n: number, appended: boolean) =>
+    n > 0
+      ? `Launch group "${name}": ${appended ? 'appended' : 'created with'} ${n} member${n === 1 ? '' : 's'}`
+      : `Launch group "${name}" ${appended ? 'already exists (no new members picked)' : 'created (empty) — right-click any script row → "Add to Launch Group" to collect members'}`,
+  confirmDeleteGroup: (name: string, n: number) =>
+    `About to delete launch group "${name}" (${n} member${n === 1 ? '' : 's'}; running scripts are not affected). Continue?`,
+  confirmDeleteBtn: 'Delete',
+  groupWriteFail: (msg: string) => `Failed to save launch group settings: ${msg}`,
 
   // ── Dialogs ──
   conflictOwnedByScript: (port: number, name: string, script: string) =>

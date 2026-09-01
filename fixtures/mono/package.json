@@ -1,0 +1,12 @@
+{
+  "name": "mono-suite",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node -e \"require('http').createServer((q,s)=>s.end('mono-root')).listen(45904)\"",
+    "build": "echo mono root build (no-op)"
+  }
+}

@@ -2,7 +2,7 @@
   "name": "npm-run-manager",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.8.5",
+  "version": "0.9.1",
   "publisher": "npm-run-dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -116,10 +116,67 @@
         "title": "%cmd.refresh.title%",
         "icon": "$(refresh)",
         "category": "npm-run"
+      },
+      {
+        "command": "npm-run.runGroup",
+        "title": "%cmd.runGroup.title%",
+        "icon": "$(play)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.addToGroup",
+        "title": "%cmd.addToGroup.title%",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.removeFromGroup",
+        "title": "%cmd.removeFromGroup.title%",
+        "icon": "$(close)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.deleteGroup",
+        "title": "%cmd.deleteGroup.title%",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.memberRestart",
+        "title": "%cmd.memberRestart.title%",
+        "icon": "$(debug-restart)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.newGroup",
+        "title": "%cmd.newGroup.title%",
+        "icon": "$(new-folder)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.stopGroup",
+        "title": "%cmd.stopGroup.title%",
+        "icon": "$(debug-stop)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.stopMember",
+        "title": "%cmd.stopMember.title%",
+        "icon": "$(debug-stop)",
+        "category": "npm-run"
+      },
+      {
+        "command": "npm-run.memberStart",
+        "title": "%cmd.memberStart.title%",
+        "icon": "$(play)",
+        "category": "npm-run"
       }
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "npm-run.newGroup",
+          "when": "view == npm-run.scripts",
+          "group": "navigation"
+        },
         {
           "command": "npm-run.refresh",
           "when": "view == npm-run.scripts",
@@ -221,6 +278,82 @@
           "command": "npm-run.openInBrowser",
           "when": "view == npm-run.scripts && viewItem == external-port",
           "group": "inline"
+        },
+        {
+          "command": "npm-run.runGroup",
+          "when": "view == npm-run.scripts && viewItem == launch-group",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.runGroup",
+          "when": "view == npm-run.scripts && viewItem == launch-group-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.stopGroup",
+          "when": "view == npm-run.scripts && viewItem == launch-group-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.showOutput",
+          "when": "view == npm-run.scripts && viewItem == launch-group-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == launch-group-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.memberStart",
+          "when": "view == npm-run.scripts && viewItem == group-member",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.removeFromGroup",
+          "when": "view == npm-run.scripts && viewItem == group-member",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.memberRestart",
+          "when": "view == npm-run.scripts && viewItem == group-member-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.stopMember",
+          "when": "view == npm-run.scripts && viewItem == group-member-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.showOutput",
+          "when": "view == npm-run.scripts && viewItem == group-member-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.openInBrowser",
+          "when": "view == npm-run.scripts && viewItem == group-member-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.removeFromGroup",
+          "when": "view == npm-run.scripts && viewItem == group-member-running",
+          "group": "inline"
+        },
+        {
+          "command": "npm-run.deleteGroup",
+          "when": "view == npm-run.scripts && viewItem == launch-group"
+        },
+        {
+          "command": "npm-run.deleteGroup",
+          "when": "view == npm-run.scripts && viewItem == launch-group-running"
+        },
+        {
+          "command": "npm-run.addToGroup",
+          "when": "view == npm-run.scripts && viewItem == script"
+        },
+        {
+          "command": "npm-run.addToGroup",
+          "when": "view == npm-run.scripts && viewItem == script-running"
         }
       ]
     },
@@ -252,6 +385,17 @@
           "type": "object",
           "default": {},
           "description": "%config.env.description%"
+        },
+        "npm-run.groups": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "%config.groups.description%"
         }
       }
     }

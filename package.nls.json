@@ -13,7 +13,17 @@
   "cmd.killExternal.title": "Kill External Process",
   "cmd.openInBrowser.title": "Open in Browser",
   "cmd.refresh.title": "Refresh Project List",
+  "cmd.runGroup.title": "Run Launch Group",
+  "cmd.addToGroup.title": "Add to Launch Group",
+  "cmd.removeFromGroup.title": "Remove from Launch Group",
+  "cmd.deleteGroup.title": "Delete Launch Group",
+  "cmd.memberRestart.title": "Run / Restart Group Member",
+  "cmd.newGroup.title": "New Launch Group — create a group, pick scripts with one click",
+  "cmd.stopGroup.title": "Stop Launch Group",
+  "cmd.stopMember.title": "Stop Group Member",
+  "cmd.memberStart.title": "Start Group Member",
   "config.exclude.description": "Glob patterns excluded when scanning for package.json",
   "config.pollIntervalMs.description": "Port/process poll interval for running scripts (ms)",
-  "config.env.description": "Environment variables injected into every script process started by the extension, e.g. { \"CODE_INSPECTOR\": \"1\" } — handy for opt-in dev tools that read env flags (code-inspector-plugin etc.)"
+  "config.env.description": "Environment variables injected into every script process started by the extension, e.g. { \"CODE_INSPECTOR\": \"1\" } — handy for opt-in dev tools that read env flags (code-inspector-plugin etc.)",
+  "config.groups.description": "Launch groups: name → array of \"project:script\" refs (e.g. { \"dev-all\": [\"apps/web:dev\"] }); managed via the \"Add to Launch Group\" context action in the tree view, or edited by hand"
 }

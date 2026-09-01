@@ -1,0 +1,9 @@
+{
+  "name": "web-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node -e \"require('http').createServer((q,s)=>s.end('web')).listen(45901)\")",
+    "dev:watch": "node -e \"require('http').createServer((q,s)=>s.end('web-watch')).listen(45902)\""
+  }
+}

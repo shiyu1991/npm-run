@@ -13,7 +13,17 @@
   "cmd.killExternal.title": "结束外部进程",
   "cmd.openInBrowser.title": "在浏览器打开",
   "cmd.refresh.title": "刷新项目列表",
+  "cmd.runGroup.title": "运行启动组",
+  "cmd.addToGroup.title": "添加到启动组",
+  "cmd.removeFromGroup.title": "从启动组移除",
+  "cmd.deleteGroup.title": "删除启动组",
+  "cmd.memberRestart.title": "启动/重启组成员",
+  "cmd.newGroup.title": "新建启动组——创建组并一次选好成员，▶ 一键启动",
+  "cmd.stopGroup.title": "停止启动组",
+  "cmd.stopMember.title": "停止组成员",
+  "cmd.memberStart.title": "启动组成员",
   "config.exclude.description": "扫描 package.json 时排除的 glob 模式",
   "config.pollIntervalMs.description": "运行中脚本的端口/进程轮询间隔（毫秒）",
-  "config.env.description": "注入到扩展启动的每个脚本进程的环境变量，如 { \"CODE_INSPECTOR\": \"1\" }——适用于靠环境变量开关的开发工具（code-inspector-plugin 等）"
+  "config.env.description": "注入到扩展启动的每个脚本进程的环境变量，如 { \"CODE_INSPECTOR\": \"1\" }——适用于靠环境变量开关的开发工具（code-inspector-plugin 等）",
+  "config.groups.description": "启动组：组名 → 「项目:脚本」引用数组（如 { \"dev-all\": [\"apps/web:dev\"] }）；通过树视图右键「添加到启动组」管理，也可手动编辑"
 }

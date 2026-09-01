@@ -39,10 +39,23 @@ function spawnNpm(cwd: string, script: string) {
 describe('集成：npm 多端口服务追踪（仅 Windows）', function () {
   this.timeout(90000);
 
-  before(function () {
+  before(async function () {
     if (!isWin) {
       this.skip();
     }
+    // 预清理：上次失败运行可能遗留孤儿进程占着固定端口，会让本轮全部用例连环失败
+    //（服务起不来 → 断言 0 端口），这里主动检测并结束占用者
+    for (const port of [45731, 45732, 45800]) {
+      try {
+        const owner = (await snapshotPorts()).find((s) => s.port === port);
+        if (owner) {
+          await killProcessTree(owner.pid);
+        }
+      } catch {
+        // 快照失败不阻塞测试
+      }
+    }
+    await sleep(500);
   });
 
   it('npm run dev → 发现两个端口服务 → 单杀一个 → 另一个不受影响 → 清理无孤儿', async function () {
